@@ -443,15 +443,17 @@ namespace WafendAIO.Champions
             foreach (AIHeroClient enemyHero in enemies)
             {
                 //W
+                var enemyHealth = collector.IsOwned() ? enemyHero.Health * 0.95 : enemyHero.Health * 1;
+                
                 if (Config["killstealSettings"].GetValue<MenuBool>("wKillsteal").Enabled && isW2Ready() && enemyHero.DistanceToPlayer() <= W.Range &&
-                    OktwCommon.GetKsDamage(enemyHero, W) >= enemyHero.Health)
+                    OktwCommon.GetKsDamage(enemyHero, W) >= enemyHealth)
                 {
                     Game.Print("Killstealing with W");
                     W.Cast(enemyHero);
                 }
                 
                 //Q
-                if (getQDamage(enemyHero) >= enemyHero.Health && Config["killstealSettings"].GetValue<MenuBool>("qKillsteal").Enabled )
+                if (getQDamage(enemyHero) >= enemyHealth && Config["killstealSettings"].GetValue<MenuBool>("qKillsteal").Enabled )
                 {
                     var targetPos = enemyHero.Position;
                     if (Q.IsCharging && qRec != null && qRec.IsInside(targetPos))
@@ -471,7 +473,7 @@ namespace WafendAIO.Champions
                     }
                 }
                 //E
-                if (E.IsReady() && OktwCommon.GetKsDamage(enemyHero, E) >= enemyHero.Health && Config["killstealSettings"].GetValue<MenuBool>("eKillsteal").Enabled)
+                if (E.IsReady() && OktwCommon.GetKsDamage(enemyHero, E) >= enemyHealth && Config["killstealSettings"].GetValue<MenuBool>("eKillsteal").Enabled)
                 {
                     try
                     {
@@ -617,8 +619,7 @@ namespace WafendAIO.Champions
                 var rawDmg = minQdmg[level] + (ObjectManager.Player.TotalAttackDamage * (minQadPercentage[level]/100));
                 dmg = ObjectManager.Player.CalculateDamage(target, DamageType.Physical, rawDmg) + OktwCommon.GetIncomingDamage((AIHeroClient) target);
             }
-
-            dmg = collector.IsOwned() ? dmg * 0.95 : dmg * 1;
+            
             return dmg;
 
 
