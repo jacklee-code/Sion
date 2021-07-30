@@ -36,6 +36,8 @@ namespace WafendAIO.Champions
         private static float qGameTime;
         private static IntersectionResult[] intersectArr;
         private static int tick;
+        private static Items.Item prowlersClaw;
+        private static Items.Item collector;
 
         
         public static void initializeSion()
@@ -57,6 +59,10 @@ namespace WafendAIO.Champions
 
 
             R = new Spell(SpellSlot.R);
+
+
+            collector = new Items.Item(ItemId.The_Collector, 0);
+            prowlersClaw = new Items.Item(ItemId.Prowlers_Claw, 500);
 
             Config = new Menu("Sion ", "[Wafend.Sion]", true);
 
@@ -436,13 +442,16 @@ namespace WafendAIO.Champions
 
             foreach (AIHeroClient enemyHero in enemies)
             {
+                //W
                 if (Config["killstealSettings"].GetValue<MenuBool>("wKillsteal").Enabled && isW2Ready() && enemyHero.DistanceToPlayer() <= W.Range &&
                     OktwCommon.GetKsDamage(enemyHero, W) >= enemyHero.Health)
                 {
                     Game.Print("Killstealing with W");
                     W.Cast(enemyHero);
                 }
-                else if (getQDamage(enemyHero) >= enemyHero.Health && Config["killstealSettings"].GetValue<MenuBool>("qKillsteal").Enabled )
+                
+                //Q
+                if (getQDamage(enemyHero) >= enemyHero.Health && Config["killstealSettings"].GetValue<MenuBool>("qKillsteal").Enabled )
                 {
                     var targetPos = enemyHero.Position;
                     if (Q.IsCharging && qRec != null && qRec.IsInside(targetPos))
@@ -461,7 +470,8 @@ namespace WafendAIO.Champions
 
                     }
                 }
-                else if (E.IsReady() && OktwCommon.GetKsDamage(enemyHero, E) >= enemyHero.Health && Config["killstealSettings"].GetValue<MenuBool>("eKillsteal").Enabled)
+                //E
+                if (E.IsReady() && OktwCommon.GetKsDamage(enemyHero, E) >= enemyHero.Health && Config["killstealSettings"].GetValue<MenuBool>("eKillsteal").Enabled)
                 {
                     try
                     {
@@ -588,23 +598,30 @@ namespace WafendAIO.Champions
 
         private static double getQDamage(AIBaseClient target)
         {
-            var qLevel = ObjectManager.Player.Spellbook.GetSpell(SpellSlot.Q).Level - 1;
+            double dmg;
+            var level = ObjectManager.Player.Spellbook.GetSpell(SpellSlot.Q).Level - 1;
             if (Q.IsCharging)
             {
-                var minQRawDmg =  minQdmg[qLevel] + (ObjectManager.Player.TotalAttackDamage * (minQadPercentage[qLevel]/100)); //t = 0 
-                var maxQRawDmg =  maxQdmg[qLevel] + (ObjectManager.Player.TotalAttackDamage * (maxQadPercentage[qLevel]/100)); //t = 2
+                var minQRawDmg =  minQdmg[level] + (ObjectManager.Player.TotalAttackDamage * (minQadPercentage[level]/100)); //t = 0 
+                var maxQRawDmg =  maxQdmg[level] + (ObjectManager.Player.TotalAttackDamage * (maxQadPercentage[level]/100)); //t = 2
                 var dmgIncreaseStep = (maxQRawDmg - minQRawDmg) / 8; // 2 / 0.25 = 8 --> Difference / 8 as there are damage tiers
                
                 
                 var chargeDmg = minQRawDmg + (dmgIncreaseStep * ((Game.Time - Q.ChargedCastedTime / 1000) / 0.25));
                 
                 //Calculate dmg (enemy armor, lethality and other factors...)
-                return ObjectManager.Player.CalculateDamage(target, DamageType.Physical, chargeDmg) + OktwCommon.GetIncomingDamage((AIHeroClient) target);
+                dmg = ObjectManager.Player.CalculateDamage(target, DamageType.Physical, chargeDmg) + OktwCommon.GetIncomingDamage((AIHeroClient) target);
             }
-            
-            var rawDmg = minQdmg[qLevel] + (ObjectManager.Player.TotalAttackDamage * (minQadPercentage[qLevel]/100));
-            return ObjectManager.Player.CalculateDamage(target, DamageType.Physical, rawDmg) + OktwCommon.GetIncomingDamage((AIHeroClient) target);
-            
+            else
+            {
+                var rawDmg = minQdmg[level] + (ObjectManager.Player.TotalAttackDamage * (minQadPercentage[level]/100));
+                dmg = ObjectManager.Player.CalculateDamage(target, DamageType.Physical, rawDmg) + OktwCommon.GetIncomingDamage((AIHeroClient) target);
+            }
+
+            dmg = collector.IsOwned() ? dmg * 0.95 : dmg * 1;
+            return dmg;
+
+
         }
         #endregion
 
@@ -650,6 +667,7 @@ namespace WafendAIO.Champions
                 }
             }
         }
+
         
         
         private static void harass()
