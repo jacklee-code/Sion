@@ -38,8 +38,6 @@ namespace WafendAIO.Champions
         private static int tick;
 
         
-        
-
         public static void initializeSion()
         {
 
@@ -47,8 +45,6 @@ namespace WafendAIO.Champions
             {
                 return;
             }
-
-
 
             Q = new Spell(SpellSlot.Q, 815);
             Q.SetCharged("SionQ", "SionQ", 500, 775, 0.75f);
@@ -81,7 +77,7 @@ namespace WafendAIO.Champions
                 new MenuBool("lockOnSelectedTarget", "Lock on Selected Target?", false),
                 new MenuBool("autoQAfterUlt", "Auto Q after Ult", false),
                 new MenuBool("breakSpellShield", "Try to break Spellshield before hitting ult", false),
-                new MenuList("ultMode", "R Exploit Mode",  new[] {"Follow Mouse Target", "Follow Selected Target", "Lag Mouse Target", "Beast Mode [Recommended]"})
+                new MenuList("ultMode", "R Exploit Mode",  new[] {"Follow Mouse Target", "Follow Selected Target", "Lag Mouse Target", "Beast Mode "})
             };
             menuExploits.Add(new MenuList("ultMode", "R Exploit Mode",
                     new[] {"Follow Mouse Target", "Follow Selected Target", "Lag Mouse Target", "Beast Mode "}))

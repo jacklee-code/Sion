@@ -4,6 +4,7 @@ using EnsoulSharp;
 using EnsoulSharp.SDK;
 using EnsoulSharp.SDK.MenuUI;
 using WafendAIO.Champions;
+using WafendAIO.Models;
 
 
 namespace WafendAIO
@@ -11,6 +12,7 @@ namespace WafendAIO
     internal class Program
     {
 
+        [STAThread]
         private static void Main(string[] args)
         {
             GameEvent.OnGameLoad += OnGameLoad;
