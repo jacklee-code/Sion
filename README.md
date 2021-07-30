@@ -20,6 +20,7 @@
 # Credits
 - Sebby for his Damage Library
 - Nightmoon for his structure
+- babazhou for helping me
 
 
 # Notes
