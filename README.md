@@ -14,6 +14,7 @@
 - Improve Q Logic (Not perfect atm) --> Add Automatic Q Casting not only Release
 - Implement Lane Clear
 - Add Collector 5% Treshhold to Killsteal ✔️
+- Add Prowlers Claw Usage to Killsteal ✔️
 - Release Q before enemy interrupts us (OnDoCast with us as target...)
 
 
