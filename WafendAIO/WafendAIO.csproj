@@ -43,7 +43,6 @@
     <Compile Include="Models\Champion.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Utility\Fun.cs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="EnsoulSharp, Version=1.0.0.0, Culture=neutral, PublicKeyToken=a79d4397685f9df0">

@@ -99,9 +99,10 @@ namespace WafendAIO.Champions
             };
             Config.Add(menuKillsteal);
 
-            var menuMisc = new Menu("miscSettings", "Miscellaneous");
-            menuMisc.Add(new MenuKeyBind("spamAsylum", "Spam Clipboard Content", Keys.U, KeyBindType.Toggle))
-                .Permashow();
+            var menuMisc = new Menu("miscSettings", "Miscellaneous")
+            {
+                new MenuBool("useCollector", "Use Collector if Killable", false)
+            };
             Config.Add(menuMisc);
 
             var menuDrawing = new Menu("drawingSettings", "Drawings")
@@ -409,7 +410,7 @@ namespace WafendAIO.Champions
             releaseQAfterUltNoFlash((AIHeroClient) target);
         }
 
-        private static void releaseQAfterUltNoFlash(AIHeroClient target)
+        private static void releaseQAfterUltNoFlash(AIBaseClient target)
         {
             if (target.HasBuff("sionrtarget") && Q.IsReady() && !Q.IsCharging)
             {
@@ -473,7 +474,8 @@ namespace WafendAIO.Champions
                     }
                 }
                 //E
-                if (E.IsReady() && OktwCommon.GetKsDamage(enemyHero, E) >= enemyHealth && Config["killstealSettings"].GetValue<MenuBool>("eKillsteal").Enabled)
+                if (E.IsReady() && OktwCommon.GetKsDamage(enemyHero, E) >= enemyHealth &&
+                    Config["killstealSettings"].GetValue<MenuBool>("eKillsteal").Enabled)
                 {
                     try
                     {
@@ -524,12 +526,23 @@ namespace WafendAIO.Champions
                                 }
                             }
                         }
-                    } catch {
-                        Game.Print("Null in E Killsteal");
                     }
-            }
+                    catch
+                    {
+                        Game.Print("Error in E Killsteal");
+                    }
+                    
+                }
 
-        }
+                if (prowlersClaw.IsOwned() && prowlersClaw.IsReady && prowlersClaw.IsInRange(enemyHero) &&
+                    enemyHealth <= ObjectManager.Player.GetAutoAttackDamage(enemyHero) && enemyHero.DistanceToPlayer() >= ObjectManager.Player.GetCurrentAutoAttackRange())
+                {
+                    prowlersClaw.Cast(enemyHero);
+                    Orbwalker.Attack(enemyHero);
+                    Game.Print("Killable with Prowler + AA");
+                }
+
+            }
         }
         
 
