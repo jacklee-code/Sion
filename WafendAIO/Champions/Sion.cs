@@ -95,7 +95,8 @@ namespace WafendAIO.Champions
             {
                 new MenuBool("qKillsteal", "Q Killsteal", false),
                 new MenuBool("wKillsteal", "W Killsteal", false),
-                new MenuBool("eKillsteal", "E Killsteal", false)
+                new MenuBool("eKillsteal", "E Killsteal", false),
+                new MenuBool("pcKillsteal", "Prowler + AA Killsteal", false)
             };
             Config.Add(menuKillsteal);
 
@@ -534,7 +535,7 @@ namespace WafendAIO.Champions
                     
                 }
 
-                if (prowlersClaw.IsOwned() && prowlersClaw.IsReady && prowlersClaw.IsInRange(enemyHero) &&
+                if (Config["killstealSettings"].GetValue<MenuBool>("pcKillsteal").Enabled && prowlersClaw.IsOwned() && prowlersClaw.IsReady && prowlersClaw.IsInRange(enemyHero) &&
                     enemyHealth <= ObjectManager.Player.GetAutoAttackDamage(enemyHero) && enemyHero.DistanceToPlayer() >= ObjectManager.Player.GetCurrentAutoAttackRange())
                 {
                     prowlersClaw.Cast(enemyHero);
