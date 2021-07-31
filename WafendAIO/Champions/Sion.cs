@@ -100,12 +100,6 @@ namespace WafendAIO.Champions
             };
             Config.Add(menuKillsteal);
 
-            var menuMisc = new Menu("miscSettings", "Miscellaneous")
-            {
-                new MenuBool("useCollector", "Use Collector if Killable", false)
-            };
-            Config.Add(menuMisc);
-
             var menuDrawing = new Menu("drawingSettings", "Drawings")
             {
                 new MenuBool("drawChampRadius", "Draw Champ Radius", false),
