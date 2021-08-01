@@ -121,14 +121,29 @@ namespace WafendAIO.Champions
             AIBaseClient.OnBuffRemove += OnBuffLose;
             AIBaseClient.OnProcessSpellCast += OnProcessSpellCast;
             IntterupterLib.Interrupter.OnInterrupterSpell += OnPossibleInterrupt;
+           AIBaseClient.OnIssueOrder += OnIssueOrder;
             AIBaseClient.OnNewPath += OnNewPath;
 
+        }
+
+        private static void OnIssueOrder(AIBaseClient sender, AIBaseClientIssueOrderEventArgs args)
+        {
+            if (sender != null && sender.IsMe && args.Order == GameObjectOrder.AttackMove && sender.HasBuff("SionR"))
+            {
+                if (UltModes.minionsNearPlayer())
+                {
+                    //Game.Print("Not processing as minions near us");
+                    args.Process = false;
+                }
+               
+            }
         }
 
         #region Events
 
         private static void OnGameUpdate(EventArgs args)
         {
+            
             if (ObjectManager.Player.IsDead)
             {
                 return;
@@ -434,15 +449,14 @@ namespace WafendAIO.Champions
 
         private static void killsteal()
         {
-            var enemies = GameObjects.EnemyHeroes.Where(x => x != null && x.IsVisibleOnScreen && x.IsValidTarget() && !x.IsInvulnerable && !x.IsDead);
+            var enemies = GameObjects.EnemyHeroes.Where(x => x != null && x.IsVisibleOnScreen && x.IsValidTarget() && !x.IsInvulnerable && !x.HasBuffOfType(BuffType.UnKillable) && !x.IsDead);
 
             foreach (AIHeroClient enemyHero in enemies)
             {
                 //W
                 var enemyHealth = collector.IsOwned() ? enemyHero.Health * 0.95 : enemyHero.Health * 1;
                 
-                if (Config["killstealSettings"].GetValue<MenuBool>("wKillsteal").Enabled && isW2Ready() && enemyHero.DistanceToPlayer() <= W.Range &&
-                    OktwCommon.GetKsDamage(enemyHero, W) >= enemyHealth)
+                if (Config["killstealSettings"].GetValue<MenuBool>("wKillsteal").Enabled && isW2Ready() && enemyHero.DistanceToPlayer() <= W.Range && OktwCommon.GetKsDamage(enemyHero, W) >= enemyHealth)
                 {
                     Game.Print("Killstealing with W");
                     W.Cast(enemyHero);

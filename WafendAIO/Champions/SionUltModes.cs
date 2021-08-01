@@ -64,7 +64,7 @@ namespace WafendAIO.Champions
                             Game.CursorPos.Distance(x.Position) <= Champion.Config["champRadius"].GetValue<MenuSlider>().Value)
                 .OrderBy(x => Game.CursorPos.Distance(x.Position));
                 var aiHeroClients = possibleHeroes.ToList();
-
+            
                 if (aiHeroClients.Any())
                 {
                     var target = aiHeroClients.FirstOrDefault();
@@ -72,9 +72,9 @@ namespace WafendAIO.Champions
                     {
                         //Game.Print("Targeting Champion: " + target.Name);
                         ObjectManager.Player.IssueOrder(GameObjectOrder.AttackUnit, target);
-
+            
                     }
-
+            
                 }
                 else
                 {
@@ -82,7 +82,7 @@ namespace WafendAIO.Champions
                         .Where(x => x.IsValidTarget() &&
                                     Game.CursorPos.Distance(x.Position) <= Champion.Config["minionRadius"].GetValue<MenuSlider>().Value)
                         .OrderBy(x => Game.CursorPos.Distance(x.Position));
-
+            
                     var aiMinionClients = possibleEnemyMinions.ToList();
                     if (aiMinionClients.Any())
                     {
@@ -91,21 +91,20 @@ namespace WafendAIO.Champions
                         {
                             //Game.Print("Targeting Minion");
                             ObjectManager.Player.IssueOrder(GameObjectOrder.AttackUnit, target);
-
+            
                         }
                     }
                     else
                     {
                         //Cursor is not near any champions nor any Minions --> Follow Mouse Cursor
-                        if (minionsNearPlayer())
-                        {
-                            return;
-                        }
-                        ObjectManager.Player.IssueOrder((GameObjectOrder)7, ObjectManager.Player.Position + (Game.CursorPos - ObjectManager.Player.Position));
-
+                        ObjectManager.Player.IssueOrder(GameObjectOrder.AttackMove, ObjectManager.Player.Position + (Game.CursorPos - ObjectManager.Player.Position));
+            
                     }
                 }
             }
+            
+            //ObjectManager.Player.IssueOrder(GameObjectOrder.AttackMove, ObjectManager.Player.Position + (Game.CursorPos - ObjectManager.Player.Position));
+
 
         }
 
@@ -127,9 +126,9 @@ namespace WafendAIO.Champions
 
         }
         
-        private static bool minionsNearPlayer()
+        public static bool minionsNearPlayer()
         {
-            return GameObjects.AttackableUnits.Any(x => x.IsValidTarget() && !x.IsJungle() && !x.Name.Contains("Plant") && x.DistanceToPlayer() < 750);
+            return GameObjects.AttackableUnits.Any(x => x.IsValidTarget() && !x.Name.Contains("Crab")&&!x.Name.Contains("Plant") && x.DistanceToPlayer() < 760);
         }
         
         
