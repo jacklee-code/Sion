@@ -118,7 +118,8 @@ namespace WafendAIO.Champions
             IEnumerable<AIHeroClient> possibleHeroes = GameObjects.EnemyHeroes
                 .Where(x => x.IsValidTarget() && x.DistanceToPlayer() <= Champion.W.Range && 
                             x.enemyHasRemovableSpellShield());
-            if (possibleHeroes.Any())
+            
+            if (possibleHeroes.Any() && Sion.isW2Ready())
             {
                 Game.Print("Breaking Spellshield");
                 Champion.W.Cast(possibleHeroes.FirstOrDefault());
@@ -128,7 +129,7 @@ namespace WafendAIO.Champions
         
         public static bool minionsNearPlayer()
         {
-            return GameObjects.AttackableUnits.Any(x => x.IsValidTarget() && !x.Name.Contains("Crab")&&!x.Name.Contains("Plant") && x.DistanceToPlayer() < 760);
+            return GameObjects.AttackableUnits.Any(x => x.IsValidTarget() && x.Team != GameObjectTeam.Neutral &&!x.Name.Contains("Plant") && x.DistanceToPlayer() < 760);
         }
         
         

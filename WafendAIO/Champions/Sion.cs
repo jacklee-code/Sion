@@ -64,24 +64,27 @@ namespace WafendAIO.Champions
             collector = new Items.Item(ItemId.The_Collector, 0);
             prowlersClaw = new Items.Item(ItemId.Prowlers_Claw, 500);
 
-            Config = new Menu("Sion ", "[Wafend.Sion]", true);
+            Config = new Menu("Sion", "[Wafend.Sion]", true);
 
 
             var menuCombat = new Menu("combatSettings", "Combat");
             menuCombat.Add(new MenuList("qMode", "Q Modes",
                 new[] {"Fast KnockUp Release", "Maximum Q Charge"})).Permashow();
+            menuCombat.Add(new MenuBool("qOnExpireStun", "Use Q Before Stun runs out"));
             Config.Add(menuCombat);
 
-            var menuFarm = new Menu("farmSettings", "Farm")
+            var menuHarass = new Menu("harassSettings", "Harass")
             {
-                new MenuBool("lastHitWithE", "Last hit with E", false)
+                new MenuBool("useQ", "Use Q", false),
+                new MenuBool("useE", "Use E", false)
             };
-            Config.Add(menuFarm);
+            Config.Add(menuHarass);
 
             var menuExploits = new Menu("exploitSettings", "Exploit")
             {
                 new MenuBool("lockOnSelectedTarget", "Lock on Selected Target?", false),
                 new MenuBool("autoQAfterUlt", "Auto Q after Ult", false),
+                new MenuBool("autoWOnUlt", "Auto W on Ult", false),
                 new MenuBool("breakSpellShield", "Try to break Spellshield before hitting ult", false),
                 new MenuList("ultMode", "R Exploit Mode",  new[] {"Follow Mouse Target", "Follow Selected Target", "Lag Mouse Target", "Beast Mode "})
             };
@@ -121,7 +124,7 @@ namespace WafendAIO.Champions
             AIBaseClient.OnBuffRemove += OnBuffLose;
             AIBaseClient.OnProcessSpellCast += OnProcessSpellCast;
             IntterupterLib.Interrupter.OnInterrupterSpell += OnPossibleInterrupt;
-           AIBaseClient.OnIssueOrder += OnIssueOrder;
+            AIBaseClient.OnIssueOrder += OnIssueOrder;
             AIBaseClient.OnNewPath += OnNewPath;
 
         }
@@ -143,17 +146,12 @@ namespace WafendAIO.Champions
 
         private static void OnGameUpdate(EventArgs args)
         {
+
+            if (ObjectManager.Player.IsDead) return;
             
-            if (ObjectManager.Player.IsDead)
-            {
-                return;
-            }
 
             switch (Orbwalker.ActiveMode)
             {
-                case OrbwalkerMode.LastHit:
-                    lastHitWithE();
-                    break;
                 case OrbwalkerMode.Harass:
                     harass();
                     break;
@@ -236,20 +234,27 @@ namespace WafendAIO.Champions
 
         private static void OnProcessSpellCast(AIBaseClient sender, AIBaseClientProcessSpellCastEventArgs args)
         {
-            if (sender.IsMe && args.Slot == SpellSlot.Q)
+            if (sender.IsMe)
             {
-                qGameTime = Game.Time;
-                qArgs = args;
-                qRec = new Geometry.Rectangle(args.Start, args.Start.Extend(args.End, Q.Range), Q.Width);
-                qMaxRec = new Geometry.Rectangle(args.Start, args.Start.Extend(args.End, Q.ChargedMaxRange), Q.Width);
-                qTempRec = qRec;
-                //Get enemy in our Q Rectangle with the Q being on full range
-                var possibleTarget = GameObjects.EnemyHeroes.Where(x => x.IsVisibleOnScreen && qMaxRec.IsInside(x));
-                var aiHeroClients = possibleTarget as AIHeroClient[] ?? possibleTarget.ToArray();
-                if (aiHeroClients.Any())
+                if (args.Slot == SpellSlot.Q)
                 {
-                    qTarg = aiHeroClients.FirstOrDefault();
+                    qGameTime = Game.Time;
+                    qArgs = args;
+                    qRec = new Geometry.Rectangle(args.Start, args.Start.Extend(args.End, Q.Range), Q.Width);
+                    qMaxRec = new Geometry.Rectangle(args.Start, args.Start.Extend(args.End, Q.ChargedMaxRange), Q.Width);
+                    qTempRec = qRec;
+                    //Get enemy in our Q Rectangle with the Q being on full range
+                    var possibleTarget = GameObjects.EnemyHeroes.Where(x => x.IsVisibleOnScreen && qMaxRec.IsInside(x));
+                    var aiHeroClients = possibleTarget as AIHeroClient[] ?? possibleTarget.ToArray();
+                    if (aiHeroClients.Any())
+                    {
+                        qTarg = aiHeroClients.FirstOrDefault();
+                    }
+                } else if (args.Slot == SpellSlot.R && Config["exploitSettings"].GetValue<MenuBool>("autoWOnUlt").Enabled && W.IsReady() && !ObjectManager.Player.HasBuff("sionwshieldstacks"))
+                {
+                    W.Cast();
                 }
+                
             }
         }
 
@@ -431,10 +436,9 @@ namespace WafendAIO.Champions
 
             }
 
-            if (Q.IsCharging && hitByR && stunBuff != null && (Game.Time - stunBuff.EndTime) >= -0.1)
+            if (Config["combatSettings"].GetValue<MenuBool>("qOnExpireStun").Enabled && Q.IsCharging && hitByR && stunBuff != null && (Game.Time - stunBuff.EndTime) >= -0.1)
             {
-                Game.Print("Releasing Q on Target: " + target.CharacterName + " ; Differential: " +
-                           ((Game.Time - stunBuff.EndTime)));
+                Game.Print("Releasing Q on Target: " + target.CharacterName + " ; Differential: " + ((Game.Time - stunBuff.EndTime)));
                 Q.ShootChargedSpell(target.Position);
                 resetQ();
             }
@@ -444,9 +448,6 @@ namespace WafendAIO.Champions
         #endregion
 
         #region ks
-
-
-
         private static void killsteal()
         {
             var enemies = GameObjects.EnemyHeroes.Where(x => x != null && x.IsVisibleOnScreen && x.IsValidTarget() && !x.IsInvulnerable && !x.HasBuffOfType(BuffType.UnKillable) && !x.IsDead);
@@ -526,7 +527,7 @@ namespace WafendAIO.Champions
                                         {
                                             if (collisionLine.IsInside(predOut.CastPosition))
                                             {
-                                                //Is the CastPosition in our Collision Line? So does the CastPosition use a collision?
+                                                //Is the CastPosition of the prediction in our Collision Line? In other words: does the CastPosition use a collision?
                                                 Game.Print("Collision Predict");
                                                 E.Cast(predOut.CastPosition);
                                             }
@@ -615,7 +616,7 @@ namespace WafendAIO.Champions
             return tick == offset;
         }
 
-        private static bool isW2Ready()
+        public static bool isW2Ready()
         {
             return W.IsReady() && ObjectManager.Player.HasBuff("sionwshieldstacks");
         }
@@ -634,15 +635,15 @@ namespace WafendAIO.Champions
                 var chargeDmg = minQRawDmg + (dmgIncreaseStep * ((Game.Time - Q.ChargedCastedTime / 1000) / 0.25));
                 
                 //Calculate dmg (enemy armor, lethality and other factors...)
-                dmg = ObjectManager.Player.CalculateDamage(target, DamageType.Physical, chargeDmg) + OktwCommon.GetIncomingDamage((AIHeroClient) target);
+                dmg = ObjectManager.Player.CalculateDamage(target, DamageType.Physical, chargeDmg);
             }
             else
             {
                 var rawDmg = minQdmg[level] + (ObjectManager.Player.TotalAttackDamage * (minQadPercentage[level]/100));
-                dmg = ObjectManager.Player.CalculateDamage(target, DamageType.Physical, rawDmg) + OktwCommon.GetIncomingDamage((AIHeroClient) target);
+                dmg = ObjectManager.Player.CalculateDamage(target, DamageType.Physical, rawDmg);
             }
             
-            return dmg;
+            return dmg + OktwCommon.GetIncomingDamage((AIHeroClient) target);
 
 
         }
@@ -650,6 +651,8 @@ namespace WafendAIO.Champions
 
         private static void lastHitWithE()
         {
+            
+            //kind of useless? took out for now
             if (Config["farmSettings"].GetValue<MenuBool>("lastHitWithE").Enabled && E.IsReady())
             {
                 var possibleLastHits =
@@ -695,61 +698,94 @@ namespace WafendAIO.Champions
         
         private static void harass()
         {
-            var enemies = GameObjects.EnemyHeroes.Where(x =>
+            if (Config["harassSettings"].GetValue<MenuBool>("useE").Enabled)
+            {
+                var enemies = GameObjects.EnemyHeroes.Where(x =>
                 x.IsValidTarget() && x.IsVisibleOnScreen && x.DistanceToPlayer() <= 1350);
             
-            if (E.IsReady() && enemies.Any())
-            {
-                var target = enemies.FirstOrDefault();
-                if (target == null) return;
-                collisionLine = new Geometry.Rectangle(ObjectManager.Player.Position, target.Position, E.Width);
-
-                if (target.DistanceToPlayer() <= E.Range)
+                if (E.IsReady() && enemies.Any())
                 {
-                    PredictionOutput pOutE = E.GetPrediction(target);
-                    if (E.CanCast(target) && pOutE.Hitchance == HitChance.High)
-                    {
-                        Game.Print("Direct Harass Hit with E");
-                        E.Cast(pOutE.CastPosition);
-                    }
-                }
-                else
-                {
-                    //Enemy ist aus unserer E Range
-                    var possibleKnockBackEntities = GameObjects.AttackableUnits.Where(x =>
-                        x.IsValidTarget() && x.Type == GameObjectType.AIMinionClient &&
-                        x.DistanceToPlayer() <= E.Range);
+                    var target = enemies.FirstOrDefault();
+                    if (target == null) return;
+                    collisionLine = new Geometry.Rectangle(ObjectManager.Player.Position, target.Position, E.Width);
 
-                    //possible things we can knockback
-
-                    var knockBackEntities = possibleKnockBackEntities as AttackableUnit[] ?? possibleKnockBackEntities.ToArray();
-                    if (knockBackEntities.Any() && possibleKnockBackEntities != null)
+                    if (target.DistanceToPlayer() <= E.Range)
                     {
-                        foreach (AttackableUnit k in knockBackEntities)
+                        PredictionOutput pOutE = E.GetPrediction(target);
+                        if (E.CanCast(target) && pOutE.Hitchance == HitChance.High)
                         {
-                            //Iterate through the knockBackEntities
+                            Game.Print("Direct Harass Hit with E");
+                            E.Cast(pOutE.CastPosition);
+                        }
+                    }
+                    else
+                    {
+                        //Enemy ist aus unserer E Range
+                        var possibleKnockBackEntities = GameObjects.AttackableUnits.Where(x =>
+                            x.IsValidTarget() && x.Type == GameObjectType.AIMinionClient &&
+                            x.DistanceToPlayer() <= E.Range);
 
-                            if (collisionLine.IsInside(k))
+                        //possible things we can knockback
+
+                        var knockBackEntities = possibleKnockBackEntities as AttackableUnit[] ?? possibleKnockBackEntities.ToArray();
+                        if (knockBackEntities.Any() && possibleKnockBackEntities != null)
+                        {
+                            foreach (AttackableUnit k in knockBackEntities)
                             {
-                                //Is there a collision between the direct line between us and the target and the knockBackEntities?
+                                //Iterate through the knockBackEntities
 
-                                var predOut = E.GetPrediction(target, false, 1350f,
-                                    new[] {CollisionObjects.Heroes, CollisionObjects.YasuoWall});
-                                //GetPrediction of Knockback Range (1350)
-                                if (predOut.Hitchance == HitChance.High)
+                                if (collisionLine.IsInside(k))
                                 {
-                                    if (collisionLine.IsInside(predOut.CastPosition))
+                                    //Is there a collision between the direct line between us and the target and the knockBackEntities?
+
+                                    var predOut = E.GetPrediction(target, false, 1350f,
+                                        new[] {CollisionObjects.Heroes, CollisionObjects.YasuoWall});
+                                    //GetPrediction of Knockback Range (1350)
+                                    if (predOut.Hitchance == HitChance.High)
                                     {
-                                        //Is the CastPosition in our Collision Line? So does the CastPosition use a collision?
-                                        Game.Print("Collision Harass");
-                                        E.Cast(predOut.CastPosition);
+                                        if (collisionLine.IsInside(predOut.CastPosition))
+                                        {
+                                            //Is the CastPosition in our Collision Line? So does the CastPosition use a collision?
+                                            Game.Print("Collision Harass");
+                                            E.Cast(predOut.CastPosition);
+                                        }
                                     }
                                 }
                             }
                         }
                     }
                 }
+            
             }
+
+
+            if (Config["harassSettings"].GetValue<MenuBool>("useQ").Enabled)
+            {
+                var qtarget = TargetSelector.GetTarget(500, DamageType.Physical);
+
+                if (qtarget == null) return;
+
+                if (Q.IsReady() && !Q.IsCharging)
+                {
+                    if (qtarget.IsDashing() && qtarget.GetDashInfo() != null)
+                    {
+                        Game.Print("Enemy is dashing -> Casting Q On End Pos");
+                        Q.StartCharging(qtarget.GetDashInfo().EndPos);
+                        qTarg = qtarget;
+                    }
+                    else
+                    {
+                        //TODO check if enemy has dash ready if yes dont cast Q
+                        //Basically only Cast if we are not in danger
+                        Q.StartCharging(qtarget.Position);
+                        qTarg = qtarget;
+                    }
+                }
+            }
+
+            
+            
+
         }
 
        
