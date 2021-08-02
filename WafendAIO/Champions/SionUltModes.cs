@@ -110,7 +110,7 @@ namespace WafendAIO.Champions
 
         private static bool enemyHasRemovableSpellShield(this AIBaseClient target)
         {
-            return target.HasBuffOfType(BuffType.SpellShield);
+            return target.HasBuffOfType(BuffType.SpellShield) || target.HasBuff("malzaharpassiveshield");
         }
 
         public static void tryBreakSpellShield()

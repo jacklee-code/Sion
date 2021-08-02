@@ -239,7 +239,6 @@ namespace WafendAIO.Champions
                 if (args.Slot == SpellSlot.Q)
                 {
                     qGameTime = Game.Time;
-                    qArgs = args;
                     qRec = new Geometry.Rectangle(args.Start, args.Start.Extend(args.End, Q.Range), Q.Width);
                     qMaxRec = new Geometry.Rectangle(args.Start, args.Start.Extend(args.End, Q.ChargedMaxRange), Q.Width);
                     qTempRec = qRec;
@@ -474,7 +473,7 @@ namespace WafendAIO.Champions
                     }
                     else
                     {
-                        if (targetPos.DistanceToPlayer() <= 500 && Q.IsReady())
+                        if (targetPos.DistanceToPlayer() <= 500 && Q.IsReady() && !ObjectManager.Player.HasBuff("SionQ"))
                         {
                             Game.Print("No Charge Q Ks");
                             Q.StartCharging(targetPos);
@@ -489,13 +488,12 @@ namespace WafendAIO.Champions
                 {
                     try
                     {
-                        var target = enemyHero;
-                        collisionLine = new Geometry.Rectangle(ObjectManager.Player.Position, target.Position, E.Width);
+                        collisionLine = new Geometry.Rectangle(ObjectManager.Player.Position, enemyHero.Position, E.Width);
 
-                        if (target.DistanceToPlayer() <= E.Range)
+                        if (enemyHero.DistanceToPlayer() <= E.Range)
                         {
-                            var pOutE = E.GetPrediction(target);
-                            if (E.CanCast(target) && pOutE.Hitchance == HitChance.High)
+                            var pOutE = E.GetPrediction(enemyHero);
+                            if (E.CanCast(enemyHero) && pOutE.Hitchance == HitChance.High)
                             {
                                 Game.Print("Direct Hit with E");
                                 E.Cast(pOutE.CastPosition);
@@ -520,7 +518,7 @@ namespace WafendAIO.Champions
                                     {
                                         //Is there a collision between the direct line between us and the target and the knockBackEntities?
 
-                                        var predOut = E.GetPrediction(target, false, 1350f,
+                                        var predOut = E.GetPrediction(enemyHero, false, 1350f,
                                             new[] {CollisionObjects.Heroes, CollisionObjects.YasuoWall});
                                         //GetPrediction of Knockback Range (1350)
                                         if (predOut.Hitchance == HitChance.High)
@@ -591,7 +589,7 @@ namespace WafendAIO.Champions
 
         private static bool isQKnockup()
         {
-            if (Q.IsCharging && qArgs != null && Math.Abs(Game.Time - qGameTime) >= 0.925)
+            if (Q.IsCharging && qTarg != null && Math.Abs(Game.Time - qGameTime) >= 0.925)
             {
                 //Game.Print("Knockup");
                 return true;
