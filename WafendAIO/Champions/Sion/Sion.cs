@@ -7,37 +7,27 @@ using SharpDX;
 using WafendAIO.Libraries;
 using Color = System.Drawing.Color;
 using static WafendAIO.Models.Champion;
+using static WafendAIO.Champions.Helpers;
 
 
 namespace WafendAIO.Champions
 {
     public class Sion
     {
-        
-        //Values from  https://leagueoflegends.fandom.com/wiki/Sion/LoL#Details_
-        //Damages increases every 0.25 seconds
-        public static double[] minQdmg = {30, 50, 70, 90, 110};
-        public static double[] minQadPercentage = {45, 52.5, 60, 67.5, 75};
-        
-        public static double[] maxQdmg = {70, 135, 200, 265, 330};
-        public static double[] maxQadPercentage = {135, 157.5, 180, 202.5, 225};
-        
-        
-        private static bool hitByR;
-        private static BuffInstance stunBuff;
-        private static AIBaseClient rEnemy;
-        private static EnsoulSharp.SDK.Geometry.Rectangle qRec;
-        private static Geometry.Rectangle ePath;
-        private static Geometry.Rectangle collisionLine;
-        private static EnsoulSharp.SDK.Geometry.Rectangle qTempRec;
-        private static EnsoulSharp.SDK.Geometry.Rectangle qMaxRec;
-        private static AIBaseClientProcessSpellCastEventArgs qArgs;
-        private static AIHeroClient qTarg;
-        private static float qGameTime;
-        private static IntersectionResult[] intersectArr;
-        private static int tick;
-        private static Items.Item prowlersClaw;
-        private static Items.Item collector;
+        public static bool HitByR;
+        public static BuffInstance StunBuff;
+        public static AIBaseClient REnemy;
+        public static EnsoulSharp.SDK.Geometry.Rectangle Rec;
+        public static Geometry.Rectangle EPath;
+        public static Geometry.Rectangle CollisionLine;
+        public static EnsoulSharp.SDK.Geometry.Rectangle TempRec;
+        public static EnsoulSharp.SDK.Geometry.Rectangle MaxRec;
+        public static AIHeroClient QTarg;
+        public static float QCastGameTime;
+        public static IntersectionResult[] IntersectArr;
+        public static int Tick;
+        public static Items.Item ProwlersClaw;
+        public static Items.Item Collector;
 
         
         public static void initializeSion()
@@ -61,8 +51,8 @@ namespace WafendAIO.Champions
             R = new Spell(SpellSlot.R);
 
 
-            collector = new Items.Item(ItemId.The_Collector, 0);
-            prowlersClaw = new Items.Item(ItemId.Prowlers_Claw, 500);
+            Collector = new Items.Item(ItemId.The_Collector, 0);
+            ProwlersClaw = new Items.Item(ItemId.Prowlers_Claw, 500);
 
             Config = new Menu("Sion", "[Wafend.Sion]", true);
 
@@ -115,6 +105,12 @@ namespace WafendAIO.Champions
                 new MenuSlider("minionRadius", "Cursor Radius Minion", 500, 100, 1000)
             };
             Config.Add(menuDrawing);
+            
+            var menuDebug = new Menu("debugSettings", "Debug")
+            {
+                new MenuBool("printDebug", "Print Debug in Chat", false)
+            };
+            Config.Add(menuDebug);
 
             Config.Attach();
 
@@ -126,7 +122,58 @@ namespace WafendAIO.Champions
             IntterupterLib.Interrupter.OnInterrupterSpell += OnPossibleInterrupt;
             AIBaseClient.OnIssueOrder += OnIssueOrder;
             AIBaseClient.OnNewPath += OnNewPath;
+            AntiGapcloser.OnGapcloser += OnAntiGapcloser;
 
+        }
+
+        private static void OnAntiGapcloser(AIHeroClient sender, AntiGapcloser.GapcloserArgs args)
+        { 
+            if (sender != null && !sender.IsMe && Q.IsCharging && isQKnockup() && TempRec.IsInside(sender))
+            {
+                Game.Print("AntiGapcloser");
+                Q.ShootChargedSpell(sender.Position);
+            }
+        }
+
+        private static void OnGameUpdate(EventArgs args)
+        {
+
+            if (ObjectManager.Player.IsDead) return;
+            
+            switch (Orbwalker.ActiveMode)
+            {
+                case OrbwalkerMode.Harass:
+                    harass();
+                    break;
+                default:
+                    break;
+            }
+
+            if (lagFree(0))
+            {
+                logicQ();
+            }
+        
+            if (lagFree(1))
+            {
+                killsteal();
+            }
+
+
+            R_Exploit();
+            if (HitByR)
+            {
+                ccChainAfterUlt();
+            }
+
+
+            Tick++;
+
+            if (Tick == 2)
+            {
+                Tick = 0;
+            }
+            
         }
 
         private static void OnIssueOrder(AIBaseClient sender, AIBaseClientIssueOrderEventArgs args)
@@ -140,92 +187,44 @@ namespace WafendAIO.Champions
                 }
                
             }
-        }
 
-        #region Events
-
-        private static void OnGameUpdate(EventArgs args)
-        {
-
-            if (ObjectManager.Player.IsDead) return;
-            
-
-            switch (Orbwalker.ActiveMode)
-            {
-                case OrbwalkerMode.Harass:
-                    harass();
-                    break;
-            }
+            QTarg = (AIHeroClient) sender;
     
-            if (lagFree(0))
-            {
-                logicQ();
-            }
-            
-            if (lagFree(1))
-            {
-                killsteal();
-            }
-
-
-            R_Exploit();
-            if (hitByR)
-            {
-                ccChainAfterUlt();
-            }
-
-
-            tick++;
-
-            if (tick == 2)
-            {
-                tick = 0;
-            }
         }
-
-
 
         private static void OnNewPath(AIBaseClient sender, AIBaseClientNewPathEventArgs args)
         {
             if (sender != null && args != null && sender.Type == GameObjectType.AIHeroClient && sender.IsEnemy &&
-                sender.IsVisibleOnScreen && qTempRec != null && qTempRec.IsInside(sender))
+                sender.IsVisibleOnScreen && TempRec != null && TempRec.IsInside(sender))
             {
                 if (args.Path.Length == 2)
                 {
-                    if (args.IsDash)
-                    {
-                        Game.Print("Intercepting Dash");
-                        Q.ShootChargedSpell(sender.Position);
-                        return;
-                    }
-
-
-
+                    
                     Vector3 currentPosition = args.Path[0];
                     Vector3 desiredPath = args.Path[1];
 
 
-                    Vector2 p1 = qRec.Points[0];
-                    Vector2 p2 = qRec.Points[1];
-                    Vector2 p3 = qRec.Points[2];
-                    Vector2 p4 = qRec.Points[3];
+                    Vector2 p1 = Rec.Points[0];
+                    Vector2 p2 = Rec.Points[1];
+                    Vector2 p3 = Rec.Points[2];
+                    Vector2 p4 = Rec.Points[3];
 
                     IntersectionResult p1P2 = p1.Intersection(p2, currentPosition.ToVector2(), desiredPath.ToVector2());
                     IntersectionResult p1P4 = p1.Intersection(p4, currentPosition.ToVector2(), desiredPath.ToVector2());
                     IntersectionResult p2P3 = p2.Intersection(p3, currentPosition.ToVector2(), desiredPath.ToVector2());
                     IntersectionResult p3P4 = p3.Intersection(p4, currentPosition.ToVector2(), desiredPath.ToVector2());
 
-                    intersectArr = new[] {p1P2, p1P4, p2P3, p3P4};
-                    qTarg = (AIHeroClient) sender;
+                    IntersectArr = new[] {p1P2, p1P4, p2P3, p3P4};
+                    QTarg = (AIHeroClient) sender;
 
                 }
             }
         }
-
+        
         private static void OnPossibleInterrupt(AIHeroClient sender,
             Libraries.IntterupterLib.Interrupter.InterruptSpellArgs args)
         {
-            if (Q.IsCharging && isQKnockup() && qTempRec.IsInside(sender))
+            if (Q.IsCharging && isQKnockup() && TempRec.IsInside(sender))
             {
                 Game.Print("Interrupter");
                 Q.ShootChargedSpell(args.Sender.Position);
@@ -238,16 +237,16 @@ namespace WafendAIO.Champions
             {
                 if (args.Slot == SpellSlot.Q)
                 {
-                    qGameTime = Game.Time;
-                    qRec = new Geometry.Rectangle(args.Start, args.Start.Extend(args.End, Q.Range), Q.Width);
-                    qMaxRec = new Geometry.Rectangle(args.Start, args.Start.Extend(args.End, Q.ChargedMaxRange), Q.Width);
-                    qTempRec = qRec;
+                    QCastGameTime = Game.Time;
+                    Rec = new Geometry.Rectangle(args.Start, args.Start.Extend(args.End, Q.Range), Q.Width);
+                    MaxRec = new Geometry.Rectangle(args.Start, args.Start.Extend(args.End, Q.ChargedMaxRange), Q.Width);
+                    TempRec = Rec;
                     //Get enemy in our Q Rectangle with the Q being on full range
-                    var possibleTarget = GameObjects.EnemyHeroes.Where(x => x.IsVisibleOnScreen && qMaxRec.IsInside(x));
+                    var possibleTarget = GameObjects.EnemyHeroes.Where(x => x.IsVisibleOnScreen && MaxRec.IsInside(x));
                     var aiHeroClients = possibleTarget as AIHeroClient[] ?? possibleTarget.ToArray();
                     if (aiHeroClients.Any())
                     {
-                        qTarg = aiHeroClients.FirstOrDefault();
+                        QTarg = aiHeroClients.FirstOrDefault();
                     }
                 } else if (args.Slot == SpellSlot.R && Config["exploitSettings"].GetValue<MenuBool>("autoWOnUlt").Enabled && W.IsReady() && !ObjectManager.Player.HasBuff("sionwshieldstacks"))
                 {
@@ -271,11 +270,11 @@ namespace WafendAIO.Champions
                 return;
             }
 
-            if (rEnemy != null && sender.Equals(rEnemy) && args.Buff.Name.Equals("Stun") && Q.IsCharging)
+            if (REnemy != null && sender.Equals(REnemy) && args.Buff.Name.Equals("Stun") && Q.IsCharging)
             {
                 Game.Print("Releasing Q ; OnBuffLose");
                 Q.ShootChargedSpell(sender.Position);
-                rEnemy = null;
+                REnemy = null;
             }
 
         }
@@ -292,8 +291,8 @@ namespace WafendAIO.Champions
                 Config["exploitSettings"].GetValue<MenuBool>("autoQAfterUlt").Enabled)
             {
                 Game.Print("Started Charging Q ; OnBuffGain");
-                hitByR = true;
-                rEnemy = sender;
+                HitByR = true;
+                REnemy = sender;
             }
 
 
@@ -320,12 +319,12 @@ namespace WafendAIO.Champions
                     Color.Blue);
             }
 
-            if (Config["drawingSettings"].GetValue<MenuBool>("drawQRectangle").Enabled && qRec != null)
+            if (Config["drawingSettings"].GetValue<MenuBool>("drawQRectangle").Enabled && Rec != null)
             {
-                qRec.Draw(Color.Blue);
+                Rec.Draw(Color.Blue);
             }
 
-            if (Config["drawingSettings"].GetValue<MenuBool>("drawQRange").Enabled && qRec != null)
+            if (Config["drawingSettings"].GetValue<MenuBool>("drawQRange").Enabled && Rec != null)
             {
                 Drawing.DrawCircle(ObjectManager.Player.Position, Q.Range, Color.Red);
             }
@@ -335,75 +334,90 @@ namespace WafendAIO.Champions
                 Drawing.DrawCircle(ObjectManager.Player.Position, E.Range, Color.Red);
             }
 
-            if (Config["drawingSettings"].GetValue<MenuBool>("drawEPath").Enabled && ePath != null)
+            if (Config["drawingSettings"].GetValue<MenuBool>("drawEPath").Enabled && EPath != null)
             {
-                ePath.Draw(Color.Red, 2);
-                ePath = null;
+                EPath.Draw(Color.Red, 2);
+                EPath = null;
             }
             
 
-            if (Config["drawingSettings"].GetValue<MenuBool>("drawEPath").Enabled && collisionLine != null)
+            if (Config["drawingSettings"].GetValue<MenuBool>("drawEPath").Enabled && CollisionLine != null)
             {
-                collisionLine.Draw(Color.Coral, 5);
-                collisionLine = null;
+                CollisionLine.Draw(Color.Coral, 5);
+                CollisionLine = null;
             }
 
-            if (qRec != null)
+            if (Rec != null)
             {
-                Drawing.DrawText(Drawing.WorldToScreen(qRec.Points[0].ToVector3()), Color.Aqua, "Point 1");
-                Drawing.DrawText(Drawing.WorldToScreen(qRec.Points[1].ToVector3()), Color.Aqua, "Point 2");
-                Drawing.DrawText(Drawing.WorldToScreen(qRec.Points[2].ToVector3()), Color.Aqua, "Point 3");
-                Drawing.DrawText(Drawing.WorldToScreen(qRec.Points[3].ToVector3()), Color.Aqua, "Point 4");
+                Drawing.DrawText(Drawing.WorldToScreen(Rec.Points[0].ToVector3()), Color.Aqua, "Point 1");
+                Drawing.DrawText(Drawing.WorldToScreen(Rec.Points[1].ToVector3()), Color.Aqua, "Point 2");
+                Drawing.DrawText(Drawing.WorldToScreen(Rec.Points[2].ToVector3()), Color.Aqua, "Point 3");
+                Drawing.DrawText(Drawing.WorldToScreen(Rec.Points[3].ToVector3()), Color.Aqua, "Point 4");
 
             }
         }
-
-        #endregion
+        
 
         #region qLogic
 
         private static void logicQ()
         {
-            if (Q.IsCharging && qTarg != null)
+            var possibleQTarget = TargetSelector.GetTarget(1500, DamageType.Physical);
+            
+            if (Q.IsCharging )
             {
-                qRec.End = (Vector2) ObjectManager.Player.Position.Extend(qTempRec.End, Q.ChargedMaxRange);
-                qRec.UpdatePolygon();
-
-                if (Config["combatSettings"].GetValue<MenuList>("qMode").Index == 0)
+                if (QTarg != null)
                 {
-                    //Fast Knockup Release
+                    //There is a target inside of our Q
+                    Rec.End = (Vector2) ObjectManager.Player.Position.Extend(TempRec.End, Q.ChargedMaxRange);
+                    Rec.UpdatePolygon();
 
-                    if (isQKnockup() && qRec.IsInside(qTarg))
+                    if (Config["combatSettings"].GetValue<MenuList>("qMode").Index == 0)
                     {
-                        Game.Print("Fast Knockup Release");
-                        Q.ShootChargedSpell(qTarg.Position);
+                        //Fast Knockup Release
+
+                        if (isQKnockup() && Rec.IsInside(QTarg))
+                        {
+                            Game.Print("Fast Knockup Release");
+                            Q.ShootChargedSpell(QTarg.Position);
+                        }
+
+                        intersectQ();
                     }
+                    else if (Config["combatSettings"].GetValue<MenuList>("qMode").Index == 1)
+                    {
+                        //Maximum Charge Release
+                        UltModes.tryBreakSpellShield();
+                        intersectQ();
 
-                    intersectQ();
+                    }
                 }
-                else if (Config["combatSettings"].GetValue<MenuList>("qMode").Index == 1 && qTarg != null)
+                else
                 {
-                    //Maximum Charge Release
-                    UltModes.tryBreakSpellShield();
-                    intersectQ();
-
+                    //No target in our Q -> Check if people walk in
+                    if (MaxRec != null && possibleQTarget != null && MaxRec.IsInside(possibleQTarget))
+                    {
+                        Game.Print("Detected possible Q Target");
+                        QTarg = possibleQTarget;
+                    }
                 }
+               
 
             }
         }
 
         private static void intersectQ()
         {
-            if (intersectArr != null)
+            if (IntersectArr != null)
             {
-                foreach (var intersect in intersectArr)
+                foreach (var intersect in IntersectArr)
                 {
                     if (intersect.Intersects)
                     {
                         //Game.Print(intersect.Point.Distance(qTarg).ToString());
-                        if (intersect.Point.Distance(qTarg) <= qTarg.BoundingRadius - 5)
+                        if (intersect.Point.Distance(QTarg) <= QTarg.BoundingRadius - 5)
                         {
-                            Q.ShootChargedSpell(qTarg.Position);
+                            Q.ShootChargedSpell(QTarg.Position);
                             Game.Print("Releasing Q as Enemy approached Intersection Point");
                         }
                     }
@@ -414,7 +428,7 @@ namespace WafendAIO.Champions
 
         private static void ccChainAfterUlt()
         {
-            var target = rEnemy;
+            var target = REnemy;
             if (target is null || !target.IsValidTarget() || !target.IsVisibleOnScreen || !target.IsEnemy ||
                 target.Type != GameObjectType.AIHeroClient)
             {
@@ -429,15 +443,15 @@ namespace WafendAIO.Champions
             if (target.HasBuff("sionrtarget") && Q.IsReady() && !Q.IsCharging)
             {
                 E.Cast(target);
-                stunBuff = target.GetBuff("sionrtarget");
+                StunBuff = target.GetBuff("sionrtarget");
                 Game.Print("Started Charging Q");
                 Q.StartCharging(target.Position);
 
             }
 
-            if (Config["combatSettings"].GetValue<MenuBool>("qOnExpireStun").Enabled && Q.IsCharging && hitByR && stunBuff != null && (Game.Time - stunBuff.EndTime) >= -0.1)
+            if (Config["combatSettings"].GetValue<MenuBool>("qOnExpireStun").Enabled && Q.IsCharging && HitByR && StunBuff != null && (Game.Time - StunBuff.EndTime) >= -0.1)
             {
-                Game.Print("Releasing Q on Target: " + target.CharacterName + " ; Differential: " + ((Game.Time - stunBuff.EndTime)));
+                Game.Print("Releasing Q on Target: " + target.CharacterName + " ; Differential: " + ((Game.Time - StunBuff.EndTime)));
                 Q.ShootChargedSpell(target.Position);
                 resetQ();
             }
@@ -454,7 +468,7 @@ namespace WafendAIO.Champions
             foreach (AIHeroClient enemyHero in enemies)
             {
                 //W
-                var enemyHealth = collector.IsOwned() ? enemyHero.Health * 0.95 : enemyHero.Health * 1;
+                var enemyHealth = Collector.IsOwned() ? enemyHero.Health * 0.95 : enemyHero.Health * 1;
                 
                 if (Config["killstealSettings"].GetValue<MenuBool>("wKillsteal").Enabled && isW2Ready() && enemyHero.DistanceToPlayer() <= W.Range && OktwCommon.GetKsDamage(enemyHero, W) >= enemyHealth)
                 {
@@ -466,7 +480,7 @@ namespace WafendAIO.Champions
                 if (getQDamage(enemyHero) >= enemyHealth && Config["killstealSettings"].GetValue<MenuBool>("qKillsteal").Enabled )
                 {
                     var targetPos = enemyHero.Position;
-                    if (Q.IsCharging && qRec != null && qRec.IsInside(targetPos))
+                    if (Q.IsCharging && Rec != null && Rec.IsInside(targetPos))
                     {
                         Game.Print("Killstealing with Q Charge");
                         Q.ShootChargedSpell(targetPos);
@@ -488,7 +502,7 @@ namespace WafendAIO.Champions
                 {
                     try
                     {
-                        collisionLine = new Geometry.Rectangle(ObjectManager.Player.Position, enemyHero.Position, E.Width);
+                        CollisionLine = new Geometry.Rectangle(ObjectManager.Player.Position, enemyHero.Position, E.Width);
 
                         if (enemyHero.DistanceToPlayer() <= E.Range)
                         {
@@ -508,13 +522,14 @@ namespace WafendAIO.Champions
 
                             //possible things we can knockback
 
-                            if (possibleKnockBackEntities.Any() && possibleKnockBackEntities != null)
+                            var knockBackEntities = possibleKnockBackEntities as AttackableUnit[] ?? possibleKnockBackEntities.ToArray();
+                            if (knockBackEntities.Any() && possibleKnockBackEntities != null)
                             {
-                                foreach (AttackableUnit k in possibleKnockBackEntities)
+                                foreach (var k in knockBackEntities)
                                 {
                                     //Iterate through the knockBackEntities
 
-                                    if (collisionLine.IsInside(k))
+                                    if (CollisionLine.IsInside(k))
                                     {
                                         //Is there a collision between the direct line between us and the target and the knockBackEntities?
 
@@ -523,7 +538,7 @@ namespace WafendAIO.Champions
                                         //GetPrediction of Knockback Range (1350)
                                         if (predOut.Hitchance == HitChance.High)
                                         {
-                                            if (collisionLine.IsInside(predOut.CastPosition))
+                                            if (CollisionLine.IsInside(predOut.CastPosition))
                                             {
                                                 //Is the CastPosition of the prediction in our Collision Line? In other words: does the CastPosition use a collision?
                                                 Game.Print("Collision Predict");
@@ -542,10 +557,10 @@ namespace WafendAIO.Champions
                     
                 }
 
-                if (Config["killstealSettings"].GetValue<MenuBool>("pcKillsteal").Enabled && prowlersClaw.IsOwned() && prowlersClaw.IsReady && prowlersClaw.IsInRange(enemyHero) &&
+                if (Config["killstealSettings"].GetValue<MenuBool>("pcKillsteal").Enabled && ProwlersClaw.IsOwned() && ProwlersClaw.IsReady && ProwlersClaw.IsInRange(enemyHero) &&
                     enemyHealth <= ObjectManager.Player.GetAutoAttackDamage(enemyHero) && enemyHero.DistanceToPlayer() >= ObjectManager.Player.GetCurrentAutoAttackRange())
                 {
-                    prowlersClaw.Cast(enemyHero);
+                    ProwlersClaw.Cast(enemyHero);
                     Orbwalker.Attack(enemyHero);
                     Game.Print("Killable with Prowler + AA");
                 }
@@ -583,69 +598,7 @@ namespace WafendAIO.Champions
         }
 
         #endregion
-
-
-        #region helpers
-
-        private static bool isQKnockup()
-        {
-            if (Q.IsCharging && qTarg != null && Math.Abs(Game.Time - qGameTime) >= 0.925)
-            {
-                //Game.Print("Knockup");
-                return true;
-            }
-
-            return false;
-        }
-
-        private static void resetQ()
-        {
-            qRec = null;
-            qTempRec = null;
-            qArgs = null;
-            qTarg = null;
-            intersectArr = null;
-            hitByR = false;
-            stunBuff = null;
-        }
-
-        private static bool lagFree(int offset)
-        {
-            return tick == offset;
-        }
-
-        public static bool isW2Ready()
-        {
-            return W.IsReady() && ObjectManager.Player.HasBuff("sionwshieldstacks");
-        }
-
-        private static double getQDamage(AIBaseClient target)
-        {
-            double dmg;
-            var level = ObjectManager.Player.Spellbook.GetSpell(SpellSlot.Q).Level - 1;
-            if (Q.IsCharging)
-            {
-                var minQRawDmg =  minQdmg[level] + (ObjectManager.Player.TotalAttackDamage * (minQadPercentage[level]/100)); //t = 0 
-                var maxQRawDmg =  maxQdmg[level] + (ObjectManager.Player.TotalAttackDamage * (maxQadPercentage[level]/100)); //t = 2
-                var dmgIncreaseStep = (maxQRawDmg - minQRawDmg) / 8; // 2 / 0.25 = 8 --> Difference / 8 as there are damage tiers
-               
-                
-                var chargeDmg = minQRawDmg + (dmgIncreaseStep * ((Game.Time - Q.ChargedCastedTime / 1000) / 0.25));
-                
-                //Calculate dmg (enemy armor, lethality and other factors...)
-                dmg = ObjectManager.Player.CalculateDamage(target, DamageType.Physical, chargeDmg);
-            }
-            else
-            {
-                var rawDmg = minQdmg[level] + (ObjectManager.Player.TotalAttackDamage * (minQadPercentage[level]/100));
-                dmg = ObjectManager.Player.CalculateDamage(target, DamageType.Physical, rawDmg);
-            }
-            
-            return dmg + OktwCommon.GetIncomingDamage((AIHeroClient) target);
-
-
-        }
-        #endregion
+        
 
         private static void lastHitWithE()
         {
@@ -664,7 +617,7 @@ namespace WafendAIO.Champions
                 {
                     //Is the closest minion even in the range to knockback
                     
-                    ePath = new Geometry.Rectangle(ObjectManager.Player.Position,
+                    EPath = new Geometry.Rectangle(ObjectManager.Player.Position,
                         ObjectManager.Player.Position.Extend(closestMinion.Position, 1350), E.Width);
                     
                     var possibleKnockBackEntities = GameObjects.AttackableUnits.Where(x =>
@@ -674,13 +627,13 @@ namespace WafendAIO.Champions
                     //possible things we can knockback
 
                     var knockBackEntities = possibleKnockBackEntities as AttackableUnit[] ?? possibleKnockBackEntities.ToArray();
-                    if (knockBackEntities.Any() && possibleKnockBackEntities != null)
+                    if (knockBackEntities.Any())
                     {
-                        foreach (AttackableUnit k in knockBackEntities)
+                        foreach (var k in knockBackEntities)
                         {
                             //Iterate through the knockBackEntities
 
-                            if (ePath.IsInside(k))
+                            if (EPath.IsInside(k))
                             {
                                 //Is there a collision between the direct line between us and the target and the knockBackEntities?
                                 Game.Print("Last Hitting");
@@ -700,12 +653,13 @@ namespace WafendAIO.Champions
             {
                 var enemies = GameObjects.EnemyHeroes.Where(x =>
                 x.IsValidTarget() && x.IsVisibleOnScreen && x.DistanceToPlayer() <= 1350);
-            
-                if (E.IsReady() && enemies.Any())
+
+                var aiHeroClients = enemies as AIHeroClient[] ?? enemies.ToArray();
+                if (E.IsReady() && aiHeroClients.Any())
                 {
-                    var target = enemies.FirstOrDefault();
+                    var target = aiHeroClients.FirstOrDefault();
                     if (target == null) return;
-                    collisionLine = new Geometry.Rectangle(ObjectManager.Player.Position, target.Position, E.Width);
+                    CollisionLine = new Geometry.Rectangle(ObjectManager.Player.Position, target.Position, E.Width);
 
                     if (target.DistanceToPlayer() <= E.Range)
                     {
@@ -726,13 +680,14 @@ namespace WafendAIO.Champions
                         //possible things we can knockback
 
                         var knockBackEntities = possibleKnockBackEntities as AttackableUnit[] ?? possibleKnockBackEntities.ToArray();
-                        if (knockBackEntities.Any() && possibleKnockBackEntities != null)
+                        if (knockBackEntities.Any())
+                            
                         {
-                            foreach (AttackableUnit k in knockBackEntities)
+                            foreach (var k in knockBackEntities)
                             {
                                 //Iterate through the knockBackEntities
 
-                                if (collisionLine.IsInside(k))
+                                if (CollisionLine.IsInside(k))
                                 {
                                     //Is there a collision between the direct line between us and the target and the knockBackEntities?
 
@@ -741,7 +696,7 @@ namespace WafendAIO.Champions
                                     //GetPrediction of Knockback Range (1350)
                                     if (predOut.Hitchance == HitChance.High)
                                     {
-                                        if (collisionLine.IsInside(predOut.CastPosition))
+                                        if (CollisionLine.IsInside(predOut.CastPosition))
                                         {
                                             //Is the CastPosition in our Collision Line? So does the CastPosition use a collision?
                                             Game.Print("Collision Harass");
@@ -769,15 +724,14 @@ namespace WafendAIO.Champions
                     {
                         Game.Print("Enemy is dashing -> Casting Q On End Pos");
                         Q.StartCharging(qtarget.GetDashInfo().EndPos);
-                        qTarg = qtarget;
                     }
                     else
                     {
                         //TODO check if enemy has dash ready if yes dont cast Q
                         //Basically only Cast if we are not in danger
                         Q.StartCharging(qtarget.Position);
-                        qTarg = qtarget;
                     }
+                    QTarg = qtarget;
                 }
             }
 

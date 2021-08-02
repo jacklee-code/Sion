@@ -36,8 +36,9 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="Champions\Sion.cs" />
-    <Compile Include="Champions\SionUltModes.cs" />
+    <Compile Include="Champions\Sion\Helpers.cs" />
+    <Compile Include="Champions\Sion\Sion.cs" />
+    <Compile Include="Champions\Sion\SionUltModes.cs" />
     <Compile Include="Libraries\InterupterLib.cs" />
     <Compile Include="Libraries\SebbyLib.cs" />
     <Compile Include="Models\Champion.cs" />

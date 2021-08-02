@@ -4,6 +4,7 @@ using EnsoulSharp;
 using EnsoulSharp.SDK;
 using EnsoulSharp.SDK.MenuUI;
 using WafendAIO.Models;
+using static WafendAIO.Champions.Helpers;
 
 namespace WafendAIO.Champions
 {
@@ -119,7 +120,7 @@ namespace WafendAIO.Champions
                 .Where(x => x.IsValidTarget() && x.DistanceToPlayer() <= Champion.W.Range && 
                             x.enemyHasRemovableSpellShield());
             
-            if (possibleHeroes.Any() && Sion.isW2Ready())
+            if (possibleHeroes.Any() && isW2Ready())
             {
                 Game.Print("Breaking Spellshield");
                 Champion.W.Cast(possibleHeroes.FirstOrDefault());
