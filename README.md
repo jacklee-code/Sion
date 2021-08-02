@@ -12,6 +12,7 @@
 # TODO
 - Refractor Code
 - Improve Q Logic (Not perfect atm) --> Add Automatic Q Casting not only Release
+- Add Safe Checks for Q Casting
 - Implement Lane Clear
 - Add Collector 5% Treshhold to Killsteal ✔️
 - Add Prowlers Claw Usage to Killsteal ✔️
