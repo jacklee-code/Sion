@@ -127,17 +127,19 @@ namespace WafendAIO.Champions
         }
 
         private static void OnAntiGapcloser(AIHeroClient sender, AntiGapcloser.GapcloserArgs args)
-        { 
-            if (sender != null && !sender.IsMe && Q.IsCharging && isQKnockup() && TempRec.IsInside(sender))
+        {
+            if (OktwCommon.CheckGapcloser(sender, args))
             {
-                Game.Print("AntiGapcloser");
-                Q.ShootChargedSpell(sender.Position);
+                if (Q.IsCharging && isQKnockup() && MaxRec.IsInside(sender) && MaxRec.IsOutside( (Vector2) args.EndPosition))
+                {
+                    Game.Print("AntiGapcloser Q");
+                    Q.ShootChargedSpell(sender.Position);
+                }
             }
         }
 
         private static void OnGameUpdate(EventArgs args)
         {
-
             if (ObjectManager.Player.IsDead) return;
             
             switch (Orbwalker.ActiveMode)
@@ -395,7 +397,7 @@ namespace WafendAIO.Champions
                 else
                 {
                     //No target in our Q -> Check if people walk in
-                    if (MaxRec != null && possibleQTarget != null && MaxRec.IsInside(possibleQTarget))
+                    if (MaxRec != null && QTarg == null && possibleQTarget != null && MaxRec.IsInside(possibleQTarget))
                     {
                         Game.Print("Detected possible Q Target");
                         QTarg = possibleQTarget;
@@ -463,7 +465,7 @@ namespace WafendAIO.Champions
         #region ks
         private static void killsteal()
         {
-            var enemies = GameObjects.EnemyHeroes.Where(x => x != null && x.IsVisibleOnScreen && x.IsValidTarget() && !x.IsInvulnerable && !x.HasBuffOfType(BuffType.UnKillable) && !x.IsDead);
+            var enemies = GameObjects.EnemyHeroes.Where(x => x != null && x.IsVisibleOnScreen && x.IsValidTarget() && !x.HasBuff("UndyingRage") && !x.IsInvulnerable && !x.HasBuffOfType(BuffType.UnKillable) && !x.IsDead && !x.HasBuffOfType(BuffType.Invulnerability));
 
             foreach (AIHeroClient enemyHero in enemies)
             {

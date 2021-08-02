@@ -68,8 +68,7 @@ namespace WafendAIO.Champions
             }
             
             return dmg + OktwCommon.GetIncomingDamage((AIHeroClient) target);
-
-
+            
         }
     }
 }
