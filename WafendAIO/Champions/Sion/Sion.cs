@@ -76,11 +76,8 @@ namespace WafendAIO.Champions
                 new MenuBool("autoQAfterUlt", "Auto Q after Ult", false),
                 new MenuBool("autoWOnUlt", "Auto W on Ult", false),
                 new MenuBool("breakSpellShield", "Try to break Spellshield before hitting ult", false),
-                new MenuList("ultMode", "R Exploit Mode",  new[] {"Follow Mouse Target", "Follow Selected Target", "Lag Mouse Target", "Beast Mode "})
             };
-            menuExploits.Add(new MenuList("ultMode", "R Exploit Mode",
-                    new[] {"Follow Mouse Target", "Follow Selected Target", "Lag Mouse Target", "Beast Mode "}))
-                .Permashow();
+            menuExploits.Add(new MenuList("ultMode", "R Exploit Mode", new[] {"Follow Mouse Target", "Follow Selected Target", "Lag Mouse Target", "Beast Mode"})).Permashow();
             Config.Add(menuExploits);
 
 
