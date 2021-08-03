@@ -444,13 +444,9 @@ namespace WafendAIO.Champions
                 
                 StunBuff = target.GetBuff("sionrtarget");
                 E.Cast(target);
+                Q.StartCharging(target.Position);
+                Game.Print("Started Charging Q");
                 
-
-                if (!E.IsReady() || target.hitByE())
-                {
-                    Q.StartCharging(target.Position);
-                    Game.Print("Started Charging Q");
-                }
                 
                 
 
