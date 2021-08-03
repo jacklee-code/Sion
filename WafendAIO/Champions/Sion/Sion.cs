@@ -272,7 +272,7 @@ namespace WafendAIO.Champions
                 return;
             }
 
-            if (REnemy != null && sender.Equals(REnemy) && args.Buff.Name.Equals("Stun") && Q.IsCharging)
+            if (REnemy != null && sender.Equals(REnemy) && args.Buff.Name.Equals("Stun") && Q.IsCharging && Config["combatSettings"].GetValue<MenuBool>("qOnExpireStun").Enabled)
             {
                 Game.Print("Releasing Q ; OnBuffLose");
                 Q.ShootChargedSpell(sender.Position);
@@ -444,10 +444,18 @@ namespace WafendAIO.Champions
         {
             if (target.HasBuff("sionrtarget") && Q.IsReady() && !Q.IsCharging)
             {
-                E.Cast(target);
+                
                 StunBuff = target.GetBuff("sionrtarget");
-                Game.Print("Started Charging Q");
-                Q.StartCharging(target.Position);
+                E.Cast(target);
+                
+
+                if (!E.IsReady() || target.hitByE())
+                {
+                    Q.StartCharging(target.Position);
+                    Game.Print("Started Charging Q");
+                }
+                
+                
 
             }
 

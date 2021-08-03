@@ -21,8 +21,13 @@ namespace WafendAIO.Champions
         
         public static bool isQKnockup()
         {
-            return Q.IsCharging && QTarg != null && Math.Abs(Game.Time - QCastGameTime) >= 0.925;
+            return Q.IsCharging && Math.Abs(Game.Time - QCastGameTime) >= 0.925;
             
+        }
+
+        public static bool hitByE(this AIBaseClient target)
+        {
+            return target.HasBuff("sionearmorshred");
         }
 
         public static void resetQ()
@@ -49,6 +54,9 @@ namespace WafendAIO.Champions
         {
             double dmg;
             var level = ObjectManager.Player.Spellbook.GetSpell(SpellSlot.Q).Level - 1;
+
+            if (level == -1) return 0;
+            
             if (Q.IsCharging)
             {
                 var minQRawDmg =  MinQdmg[level] + (ObjectManager.Player.TotalAttackDamage * (MinQadPercentage[level]/100)); //t = 0 
