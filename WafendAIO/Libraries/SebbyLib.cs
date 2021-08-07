@@ -5,6 +5,7 @@ using EnsoulSharp;
 using EnsoulSharp.SDK;
 using EnsoulSharp.SDK.Utility;
 using SharpDX;
+using WafendAIO.Champions;
 
 namespace WafendAIO.Libraries
 {
@@ -12,13 +13,13 @@ namespace WafendAIO.Libraries
     {
         private static AIHeroClient Player { get { return ObjectManager.Player; } }
         private static List<UnitIncomingDamage> IncomingDamageList = new List<UnitIncomingDamage>();
-
         static OktwCommon()
         {
             AIBaseClient.OnDoCast += AIBaseClient_OnDoCast;
             AIBaseClient.OnProcessSpellCast += AIBaseClient_OnProcessSpellCast;
         }
 
+        
         private static void AIBaseClient_OnDoCast(AIBaseClient sender, AIBaseClientProcessSpellCastEventArgs args)
         {
             if (args.SData == null || sender.Type != GameObjectType.AIHeroClient)
@@ -30,15 +31,26 @@ namespace WafendAIO.Libraries
 
             if (target != null)
             {
-                if (target.Type == GameObjectType.AIHeroClient && target.Team != sender.Team && (sender.IsMelee || !args.SData.Name.IsAutoAttack()))
+                if (target.Type == GameObjectType.AIHeroClient && target.Team != sender.Team)
                 {
-                    IncomingDamageList.Add(new UnitIncomingDamage
+                    if (sender.IsMelee || !args.SData.Name.IsAutoAttack())
                     {
-                        Damage = (sender as AIHeroClient).GetSpellDamage(target, args.Slot),
-                        Skillshot = false,
-                        TargetNetworkId = args.Target.NetworkId,
-                        Time = Game.Time
-                    });
+                        IncomingDamageList.Add(new UnitIncomingDamage
+                        {
+                            Damage = (sender as AIHeroClient).GetSpellDamage(target, args.Slot),
+                            Skillshot = false,
+                            TargetNetworkId = args.Target.NetworkId,
+                            Time = Game.Time
+                        });
+
+
+                        if (args.Target.NetworkId == ObjectManager.Player.NetworkId &&
+                            KurisuLib.CCList.Any(x => x.SDataName == args.SData.Name))
+                        {
+                            //Our player is the target and it is a CC Spell that can interrupt our Q
+                            Sion.handlePossibleInterrupt();
+                        }
+                    }
                 }
             }
             else

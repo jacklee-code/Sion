@@ -54,7 +54,7 @@ namespace WafendAIO.Champions
                 tryBreakSpellShield();
             }
             
-            if (Champion.Config["exploitSettings"].GetValue<MenuBool>("lockOnSelectedTarget").Enabled && TargetSelector.SelectedTarget != null)
+            if (Champion.Config["exploitSettings"].GetValue<MenuBool>("lockOnSelectedTarget").Enabled && TargetSelector.SelectedTarget != null && Champion.Config["exploitSettings"].GetValue<MenuBool>(TargetSelector.SelectedTarget.CharacterName).Enabled)
             {
                 ObjectManager.Player.IssueOrder(GameObjectOrder.AttackUnit, TargetSelector.SelectedTarget);
             }
@@ -69,13 +69,12 @@ namespace WafendAIO.Champions
                 if (aiHeroClients.Any())
                 {
                     var target = aiHeroClients.FirstOrDefault();
-                    if (target != null)
+                    if (target != null && Champion.Config["exploitSettings"].GetValue<MenuBool>(target.CharacterName).Enabled)
                     {
                         //Game.Print("Targeting Champion: " + target.Name);
                         ObjectManager.Player.IssueOrder(GameObjectOrder.AttackUnit, target);
             
                     }
-            
                 }
                 else
                 {
@@ -130,7 +129,7 @@ namespace WafendAIO.Champions
         
         public static bool minionsNearPlayer()
         {
-            return GameObjects.AttackableUnits.Any(x => x.IsValidTarget() && x.Team != GameObjectTeam.Neutral &&!x.Name.Contains("Plant") && x.DistanceToPlayer() < 760);
+            return GameObjects.AttackableUnits.Any(x => x.IsValidTarget() && x.Team != GameObjectTeam.Neutral && !x.Name.Contains("Plant") && x.DistanceToPlayer() < 760);
         }
         
         

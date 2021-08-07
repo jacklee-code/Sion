@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using EnsoulSharp;
 using EnsoulSharp.SDK;
@@ -20,7 +21,6 @@ namespace WafendAIO.Champions
         public static EnsoulSharp.SDK.Geometry.Rectangle Rec;
         public static Geometry.Rectangle EPath;
         public static Geometry.Rectangle CollisionLine;
-        public static EnsoulSharp.SDK.Geometry.Rectangle TempRec;
         public static EnsoulSharp.SDK.Geometry.Rectangle MaxRec;
         public static AIHeroClient QTarg;
         public static float QCastGameTime;
@@ -28,6 +28,8 @@ namespace WafendAIO.Champions
         public static int Tick;
         public static Items.Item ProwlersClaw;
         public static Items.Item Collector;
+        public static AIBaseClientProcessSpellCastEventArgs qArgs;
+        public static List<AIHeroClient> blacklist;
 
         
         public static void initializeSion()
@@ -58,9 +60,10 @@ namespace WafendAIO.Champions
 
 
             var menuCombat = new Menu("combatSettings", "Combat");
-            menuCombat.Add(new MenuList("qMode", "Q Modes", new[] {"Fast KnockUp Release", "Maximum Q Charge"})).Permashow();
-            menuCombat.Add(new MenuList("comboMode", "Combo after Ult", new[] {"R Hit -> Q", "R Hit -> E -> Q"})).Permashow();
-            menuCombat.Add(new MenuBool("qOnExpireStun", "Use Q Before Stun runs out"));
+            menuCombat.Add(new MenuList("qMode", "Q Modes", new[] {"Fast knock up release", "Maximum Q charge"})).Permashow();
+            menuCombat.Add(new MenuList("comboMode", "Combo after ult", new[] {"R Hit -> Q", "R Hit -> E -> Q"})).Permashow();
+            menuCombat.Add(new MenuBool("qOnExpireStun", "Use Q before enemy stun runs out"));
+            menuCombat.Add(new MenuBool("qBeforeInterrupt", "Use Q before someone cancels it"));
             Config.Add(menuCombat);
 
             var menuHarass = new Menu("harassSettings", "Harass")
@@ -76,20 +79,24 @@ namespace WafendAIO.Champions
                 new MenuBool("autoQAfterUlt", "Auto Q after Ult", false),
                 new MenuBool("autoWOnUlt", "Auto W on Ult", false),
                 new MenuBool("breakSpellShield", "Try to break Spellshield before hitting ult", false),
+                
             };
+            var blacklistSubMenu = new Menu("blacklistUlt", "Ult Blacklist");
+            foreach (AIHeroClient enemyHero in GameObjects.EnemyHeroes)
+            {
+                blacklistSubMenu.Add(new MenuBool(enemyHero.CharacterName, "Use on " + enemyHero.CharacterName));
+            }
+            menuExploits.Add(blacklistSubMenu);
             menuExploits.Add(new MenuList("ultMode", "R Exploit Mode", new[] {"Follow Mouse Target", "Follow Selected Target", "Lag Mouse Target", "Beast Mode"})).Permashow();
             Config.Add(menuExploits);
-
-
-            var menuKillsteal = new Menu("killstealSettings", "Killsteal");
             
+            var menuKillsteal = new Menu("killstealSettings", "Killsteal");
             menuKillsteal.Add(new MenuKeyBind("enableKillsteal", "Enable Killsteal", Keys.M, KeyBindType.Toggle)).Permashow();
             menuKillsteal.Add(new MenuBool("qKillsteal", "Q Killsteal", false));
             menuKillsteal.Add(new MenuBool("wKillsteal", "W Killsteal", false));
             menuKillsteal.Add(new MenuBool("eKillsteal", "E Killsteal", false));
             menuKillsteal.Add(new MenuBool("pcKillsteal", "Prowler + AA Killsteal", false));
-
-
+            
             Config.Add(menuKillsteal);
 
             var menuDrawing = new Menu("drawingSettings", "Drawings")
@@ -225,6 +232,7 @@ namespace WafendAIO.Champions
                     QCastGameTime = Game.Time;
                     Rec = new Geometry.Rectangle(args.Start, args.Start.Extend(args.End, Q.Range), Q.Width);
                     MaxRec = new Geometry.Rectangle(args.Start, args.Start.Extend(args.End, Q.ChargedMaxRange), Q.Width);
+                    qArgs = args;
                     //Get enemy in our Q Rectangle with the Q being on full range
                     var possibleTarget = GameObjects.EnemyHeroes.Where(x => x.IsVisibleOnScreen && MaxRec.IsInside(x));
                     var aiHeroClients = possibleTarget as AIHeroClient[] ?? possibleTarget.ToArray();
@@ -332,6 +340,8 @@ namespace WafendAIO.Champions
 
             }
         }
+        
+        
         
 
         #region qLogic
@@ -567,6 +577,16 @@ namespace WafendAIO.Champions
 
         #endregion
 
+        public static void handlePossibleInterrupt()
+        {
+            if (Config["combatSettings"].GetValue<MenuBool>("qBeforeInterrupt").Enabled && Q.IsCharging && qArgs != null && getEntitiesInQ().Any(x => x.Type == GameObjectType.AIHeroClient))
+            {
+                //Check if we are charging our Q and if there is an AiHeroClient Entitiy in our Q
+                printDebugMessage("Detected possible Spell that can interrupt us");
+                Q.ShootChargedSpell(qArgs.Start);
+            }
+        }
+
 
         #region R_Exploit
 
@@ -574,7 +594,6 @@ namespace WafendAIO.Champions
         {
             if (GameObjects.Player.HasBuff("SionR"))
             {
-
                 switch (Config["exploitSettings"].GetValue<MenuList>("ultMode").Index)
                 {
                     case 0:

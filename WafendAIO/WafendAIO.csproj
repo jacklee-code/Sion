@@ -40,6 +40,7 @@
     <Compile Include="Champions\Sion\Sion.cs" />
     <Compile Include="Champions\Sion\SionUltModes.cs" />
     <Compile Include="Libraries\InterupterLib.cs" />
+    <Compile Include="Libraries\KurisuLib.cs" />
     <Compile Include="Libraries\SebbyLib.cs" />
     <Compile Include="Models\Champion.cs" />
     <Compile Include="Program.cs" />

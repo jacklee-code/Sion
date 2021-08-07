@@ -36,7 +36,6 @@ namespace WafendAIO.Champions
         public static void resetQ()
         {
             Rec = null;
-            TempRec = null;
             QTarg = null;
             IntersectArr = null;
             HitByR = false;
@@ -78,15 +77,10 @@ namespace WafendAIO.Champions
             }
 
             var targ = target as AIHeroClient;
-            if (targ != null)
-            {
-                dmg += OktwCommon.GetIncomingDamage((AIHeroClient) target);
-            }
-            else
-            {
-                dmg *= 1.5;
-            }
 
+            dmg = targ != null ?  dmg += OktwCommon.GetIncomingDamage((AIHeroClient) target) : dmg *= 1.5;
+            
+            //TODO -10 is a random value --> need to find more accurate way on how to get exact charge time to calculate the damage properly
             return dmg - 10;
             
         }
@@ -95,7 +89,7 @@ namespace WafendAIO.Champions
         {
             if (Rec == null || !Q.IsCharging) return null;
 
-            return GameObjects.AttackableUnits.Where(x => !x.IsDead && x.IsTargetable && x.Team != ObjectManager.Player.Team && Rec.IsInside(x.Position));
+            return GameObjects.AttackableUnits.Where(x => !x.IsDead && x.IsTargetable && x.Team != ObjectManager.Player.Team && MaxRec.IsInside(x.Position));
         }
 
         public static void printDebugMessage(Object message)
