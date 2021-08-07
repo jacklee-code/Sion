@@ -16,7 +16,8 @@
 - Implement Lane Clear
 - Add Collector 5% Treshhold to Killsteal ✔️
 - Add Prowlers Claw Usage to Killsteal ✔️
-- Release Q before enemy interrupts us (OnDoCast with us as target...)
+- Added option to prevent debug messages in chat ✔️
+- Release Q before enemy interrupts us (OnDoCast with us as target...) ✔️
 
 
 # Credits
