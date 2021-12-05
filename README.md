@@ -8,6 +8,9 @@
 - Sion R Exploit | Follow Mouse / Target
 - Automatic Spellshield breaker with W in Ult against Sivir, Nocturne, Malzahar, Edge of Night...
 - Killsteal with Q, W, E (Q Charge DMG)
+- Ult Blacklist
+- Release Q before enemy interrupts us (OnDoCast with us as target...) 
+-
 
 # TODO
 - Refractor Code
@@ -23,7 +26,8 @@
 # Credits
 - Sebby for his Damage Library
 - Nightmoon for his structure
-- babazhou for helping me
+- Babazhou for helping me with exploit
+- Kurisu for his CC Lib
 
 
 # Notes
