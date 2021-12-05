@@ -29,17 +29,12 @@ namespace WafendAIO.Champions
         public static Items.Item ProwlersClaw;
         public static Items.Item Collector;
         public static AIBaseClientProcessSpellCastEventArgs qArgs;
-        public static List<AIHeroClient> blacklist;
+        public static Vector3 posVec;
+        
 
         
         public static void initializeSion()
         {
-
-            if (ObjectManager.Player.CharacterName != "Sion")
-            {
-                return;
-            }
-
             Q = new Spell(SpellSlot.Q, 815);
             Q.SetCharged("SionQ", "SionQ", 500, 775, 0.5f);
             Q.Width = 200;
@@ -60,10 +55,12 @@ namespace WafendAIO.Champions
 
 
             var menuCombat = new Menu("combatSettings", "Combat");
-            menuCombat.Add(new MenuList("qMode", "Q Modes", new[] {"Fast knock up release", "Maximum Q charge"})).Permashow();
-            menuCombat.Add(new MenuList("comboMode", "Combo after ult", new[] {"R Hit -> Q", "R Hit -> E -> Q"})).Permashow();
-            menuCombat.Add(new MenuBool("qOnExpireStun", "Use Q before enemy stun runs out"));
-            menuCombat.Add(new MenuBool("qBeforeInterrupt", "Use Q before someone cancels it"));
+            var menuQCombat = new Menu("qCombat", "Q");
+            menuQCombat.Add(new MenuList("qMode", "Q Modes", new[] {"Fast knock up release", "Maximum Q charge"})).Permashow();
+            menuQCombat.Add(new MenuList("comboMode", "Combo after ult", new[] {"R Hit -> Q", "R Hit -> E -> Q"})).Permashow();
+            menuQCombat.Add(new MenuBool("qOnExpireStun", "Use Q before enemy stun runs out"));
+            menuQCombat.Add(new MenuBool("qBeforeInterrupt", "Use Q before someone cancels it"));
+            menuCombat.Add(menuQCombat);
             Config.Add(menuCombat);
 
             var menuHarass = new Menu("harassSettings", "Harass")
@@ -87,11 +84,12 @@ namespace WafendAIO.Champions
                 blacklistSubMenu.Add(new MenuBool(enemyHero.CharacterName, "Use on " + enemyHero.CharacterName));
             }
             menuExploits.Add(blacklistSubMenu);
-            menuExploits.Add(new MenuList("ultMode", "R Exploit Mode", new[] {"Follow Mouse Target", "Follow Selected Target", "Lag Mouse Target", "Beast Mode"})).Permashow();
+            menuExploits.Add(new MenuList("ultMode", "R Exploit Mode", new[] {"Follow Mouse Target", "Follow Selected Target", "Lag Mouse Target", "Beast Mode", "Fully Manual Steer"})).Permashow();
             Config.Add(menuExploits);
             
             var menuKillsteal = new Menu("killstealSettings", "Killsteal");
-            menuKillsteal.Add(new MenuKeyBind("enableKillsteal", "Enable Killsteal", Keys.M, KeyBindType.Toggle)).Permashow();
+            menuKillsteal.Add(new MenuKeyBind("enableKillsteal", "Enable Killsteal", Keys.M, KeyBindType.Toggle))
+                .Permashow();
             menuKillsteal.Add(new MenuBool("qKillsteal", "Q Killsteal", false));
             menuKillsteal.Add(new MenuBool("wKillsteal", "W Killsteal", false));
             menuKillsteal.Add(new MenuBool("eKillsteal", "E Killsteal", false));
@@ -101,6 +99,7 @@ namespace WafendAIO.Champions
 
             var menuDrawing = new Menu("drawingSettings", "Drawings")
             {
+                new MenuBool("drawRemainingUltRange", "Draw Remaining Ult Range", false),
                 new MenuBool("drawChampRadius", "Draw Champ Radius", false),
                 new MenuBool("drawMinionRadius", "Draw Minion Radius", false),
                 new MenuBool("drawQRectangle", "Draw Q Rectangle", false),
@@ -116,7 +115,9 @@ namespace WafendAIO.Champions
             //new MenuBool("jungleSteal", "Jungle Steal", false),
             var menuMisc = new Menu("miscSettings", "Misc")
             {
-                new MenuBool("printDebug", "Print Debug in Chat", false)
+                new MenuBool("printDebug", "Print Debug in Chat", false),
+                new MenuBool("eGapCloser", "E on Gapcloser", false),
+                new MenuBool("qGapCloser", "Q on Gapcloser", false)
             };
             Config.Add(menuMisc);
             
@@ -127,26 +128,92 @@ namespace WafendAIO.Champions
             GameEvent.OnGameTick += OnGameUpdate;
             Drawing.OnDraw += OnDraw;
             AIBaseClient.OnBuffAdd += OnBuffGain;
+            AIBaseClient.OnDoCast += OnDoCast;
             AIBaseClient.OnBuffRemove += OnBuffLose;
             AIBaseClient.OnProcessSpellCast += OnProcessSpellCast;
             IntterupterLib.Interrupter.OnInterrupterSpell += OnPossibleInterrupt;
             AIBaseClient.OnIssueOrder += OnIssueOrder;
             AIBaseClient.OnNewPath += OnNewPath;
-            AntiGapcloser.OnGapcloser += OnAntiGapcloser;
+            //AntiGapcloser.OnGapcloser += OnAntiGapcloser;
+            
 
         }
 
-        private static void OnAntiGapcloser(AIHeroClient sender, AntiGapcloser.GapcloserArgs args)
+        private static void OnDoCast(AIBaseClient sender, AIBaseClientProcessSpellCastEventArgs args)
         {
+            if (sender == null || !sender.IsValid || sender.GetType() != typeof(AIHeroClient) ||
+                !sender.IsEnemy || !sender.IsVisibleOnScreen)
+            {
+                return;
+            }
+            
+            //Q Handling
+            switch (sender.CharacterName)
+            {
+                case "Fiora":
+                    if (sender.HasBuff("FioraW"))
+                    {
+                        if (sender.GetBuff("FioraW").EndTime - Game.Time < 2 - getQChargeTime())
+                        {
+                            //Remaining Time of FioraW Buff is less than the time we could charge our q with 2 being the max time of charge
+                            //2 - getQChargeTime gives us the possible reamining time we could charge our Q
+                            printDebugMessage("Charging our Q against Parry");
+                        }
+                        else
+                        {
+                            //Not possible to charge our Q in time so that FioraW runs out so we cancel our Q
+                            printDebugMessage("Cancelling our Q as we cant outcharge the Parry");
+                            ObjectManager.Player.IssueOrder(GameObjectOrder.Stop, ObjectManager.Player.Position);
+                        }
+                                
+                    }
+
+                    break;
+                case "Alistar":
+                    if (args.Slot == SpellSlot.W && args.Target != null && args.Target.IsValid && args.Target.IsMe)
+                    {
+                        //Alistar is trying to W us
+                        if (Q.IsCharging && isQKnockup() && MaxRec.IsInside(sender.Position))
+                        {
+                            printDebugMessage("Anti Alistar");
+                            Q.ShootChargedSpell(sender.Position);
+                        }
+                    }
+
+                    break;
+            }
+            
+        }
+
+        /*private static void OnAntiGapcloser(AIHeroClient sender, AntiGapcloser.GapcloserArgs args)
+        {
+            if (sender == null || args == null) return; 
             if (OktwCommon.CheckGapcloser(sender, args))
             {
-                if (Q.IsCharging && isQKnockup() && MaxRec.IsInside(sender) && MaxRec.IsOutside( (Vector2) args.EndPosition))
+                if (Config["miscSettings"].GetValue<MenuBool>("eGapcloser").Enabled)
                 {
-                    printDebugMessage("AntiGapcloser Q");
-                    Q.ShootChargedSpell(sender.Position);
+                    if (E.IsReady() && sender.IsValidTarget(E.Range))
+                    {
+                        var pred = E.GetPrediction(sender);
+                        if (pred.Hitchance >= HitChance.High)
+                        {
+                            printDebugMessage("AntiGapcloser E");
+                            E.Cast(pred.CastPosition);
+                        }
+                    }
                 }
+
+                if (Config["miscSettings"].GetValue<MenuBool>("qGapcloser").Enabled)
+                {
+                    if (Q.IsCharging && isQKnockup() && Rec != null && Rec.IsInside(sender))
+                    {
+                        printDebugMessage("AntiGapcloser Q");
+                        Q.ShootChargedSpell(sender.Position);
+                    }
+                }
+                
             }
-        }
+        }*/
 
         private static void OnGameUpdate(EventArgs args)
         {
@@ -179,7 +246,7 @@ namespace WafendAIO.Champions
                     //printDebugMessage("Not processing as minions near us");
                     args.Process = false;
                 }
-               
+
             }
             
         }
@@ -339,6 +406,11 @@ namespace WafendAIO.Champions
                 Drawing.DrawText(Drawing.WorldToScreen(Rec.Points[3].ToVector3()), Color.Aqua, "Point 4");
 
             }
+            
+            if (posVec != null)
+            {
+                Drawing.DrawCircle(posVec, 50, Color.Blue);
+            }
         }
         
         
@@ -372,6 +444,23 @@ namespace WafendAIO.Champions
                     else if (Config["combatSettings"].GetValue<MenuList>("qMode").Index == 1)
                     {
                         //Maximum Charge Release
+                        if (QTarg.CharacterName.ToLower().Equals("fiora") && QTarg.HasBuff("FioraW"))
+                        {
+
+                            if ((QTarg.GetBuff("FioraW").EndTime - Game.Time) < 2 - getQChargeTime())
+                            {
+                                //Remaining Time of FioraW Buff is less than the time we could charge our q with 2 being the max time of charge
+                                //2 - getQChargeTime gives us the possible reamining time we could charge our Q
+                                Game.Print("Charing our Q against Parry");
+                            }
+                            else
+                            {
+                                //Not possible to charge our Q in time so that FioraW runs out so we cancel our Q
+                                Game.Print("Cancelling our Q as we cant outcharge the Parry");
+                                ObjectManager.Player.IssueOrder(GameObjectOrder.Stop, ObjectManager.Player.Position);
+                            }
+                                
+                        }
                         UltModes.tryBreakSpellShield();
                         intersectQ();
 
@@ -402,7 +491,7 @@ namespace WafendAIO.Champions
                     if (intersect.Intersects)
                     {
                         //printDebugMessage(intersect.Point.Distance(qTarg).ToString());
-                        if (intersect.Point.Distance(QTarg) <= QTarg.BoundingRadius - 5)
+                        if (intersect.Point.Distance(QTarg) <= QTarg.BoundingRadius - 15)
                         {
                             Q.ShootChargedSpell(QTarg.Position);
                             printDebugMessage("Releasing Q as Enemy approached Intersection Point");
@@ -577,14 +666,19 @@ namespace WafendAIO.Champions
 
         #endregion
 
-        public static void handlePossibleInterrupt()
+        public static void handlePossibleInterrupt(AIBaseClient sender, AIBaseClientProcessSpellCastEventArgs args)
         {
-            if (Config["combatSettings"].GetValue<MenuBool>("qBeforeInterrupt").Enabled && Q.IsCharging && qArgs != null && getEntitiesInQ().Any(x => x.Type == GameObjectType.AIHeroClient))
+            if (Config["combatSettings"].GetValue<MenuBool>("qBeforeInterrupt").Enabled && Q.IsCharging)
             {
+                var entities = getEntitiesInQ().Any(x => x.Type == GameObjectType.AIHeroClient);
                 //Check if we are charging our Q and if there is an AiHeroClient Entitiy in our Q
-                printDebugMessage("Detected possible Spell that can interrupt us");
-                Q.ShootChargedSpell(qArgs.Start);
+                if (entities)
+                {
+                    printDebugMessage("Detected possible Spell that can interrupt us");
+                    Q.ShootChargedSpell(ObjectManager.Player.Position);
+                }
             }
+
         }
 
 
@@ -607,6 +701,9 @@ namespace WafendAIO.Champions
                         break;
                     case 3:
                         UltModes.Sion_R_Experiment();
+                        break;
+                    case 4:
+                        UltModes.Sion_R_Fully_Manual_Steer();
                         break;
                 }
             }

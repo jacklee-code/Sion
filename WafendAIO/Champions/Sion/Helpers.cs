@@ -58,22 +58,21 @@ namespace WafendAIO.Champions
             var level = ObjectManager.Player.Spellbook.GetSpell(SpellSlot.Q).Level - 1;
 
             if (level == -1) return 0;
-            
+            var minQRawDmg =  MinQdmg[level] + (ObjectManager.Player.TotalAttackDamage * (MinQadPercentage[level]/100)); //t = 0 
             if (Q.IsCharging)
             {
-                var minQRawDmg =  MinQdmg[level] + (ObjectManager.Player.TotalAttackDamage * (MinQadPercentage[level]/100)); //t = 0 
+                
                 var maxQRawDmg =  MaxQdmg[level] + (ObjectManager.Player.TotalAttackDamage * (MaxQadPercentage[level]/100)); //t = 2
                 var dmgIncreaseStep = (maxQRawDmg - minQRawDmg) / 8; // 2 / 0.25 = 8 --> Difference / 8 as there are damage tiers
                 
-                var chargeDmg = minQRawDmg + (dmgIncreaseStep * ((Game.Time - Q.ChargedCastedTime / 1000) / 0.25));
+                var chargeDmg = minQRawDmg + (dmgIncreaseStep * (getQChargeTime() / 0.25));
 
                 //Calculate dmg (enemy armor, lethality and other factors...)
                 dmg = ObjectManager.Player.CalculateDamage(target, DamageType.Physical, chargeDmg);
             }
             else
             {
-                var rawDmg = MinQdmg[level] + (ObjectManager.Player.TotalAttackDamage * (MinQadPercentage[level]/100));
-                dmg = ObjectManager.Player.CalculateDamage(target, DamageType.Physical, rawDmg);
+                dmg = ObjectManager.Player.CalculateDamage(target, DamageType.Physical, minQRawDmg);
             }
 
             var targ = target as AIHeroClient;
@@ -83,6 +82,11 @@ namespace WafendAIO.Champions
             //TODO -10 is a random value --> need to find more accurate way on how to get exact charge time to calculate the damage properly
             return dmg - 10;
             
+        }
+
+        public static double getQChargeTime()
+        {
+            return (Game.Time - Q.ChargedCastedTime / 1000);
         }
 
         public static IEnumerable<AttackableUnit> getEntitiesInQ()
@@ -100,5 +104,7 @@ namespace WafendAIO.Champions
             }
             
         }
+
+       
     }
 }

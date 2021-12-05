@@ -37,7 +37,6 @@ namespace WafendAIO.Libraries
                     SDataName = "AatroxQ",
                     DangerLevel = 5
                 });
-
             CCList.Add(
                 new KurisuLib
                 {
@@ -423,7 +422,27 @@ namespace WafendAIO.Libraries
                     DangerLevel = 3,
                     SDataName = "JayceThunderingBlow",
                 });
-
+            
+            CCList.Add(
+                new KurisuLib
+                {
+                    HeroName = "Sett",
+                    SpellMenuName = "Facebreaker",
+                    Slot = SpellSlot.E,
+                    Type = Skilltype.Line,
+                    DangerLevel = 3,
+                    SDataName = "Facebreaker",
+                });
+            CCList.Add(
+                new KurisuLib
+                {
+                    HeroName = "Sett",
+                    SpellMenuName = "The Show Stopper",
+                    Slot = SpellSlot.R,
+                    Type = Skilltype.Unit,
+                    DangerLevel = 5,
+                    SDataName = "TheShowStopper",
+                });
             CCList.Add(
                 new KurisuLib
                 {
@@ -1132,7 +1151,7 @@ namespace WafendAIO.Libraries
                      HeroName = "Garen",
                      SpellMenuName = "Decisive Strike",
                      Slot = SpellSlot.Q,
-                     Type = Skilltype.Circle,
+                     Type = Skilltype.Unit,
                      DangerLevel = 3,
                      SDataName = "GarenQ",
                  });

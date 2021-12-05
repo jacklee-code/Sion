@@ -107,6 +107,12 @@ namespace WafendAIO.Champions
 
 
         }
+        
+        public static void Sion_R_Fully_Manual_Steer()
+        {
+            ObjectManager.Player.IssueOrder(GameObjectOrder.AttackMove, Game.CursorPos);
+
+        }
 
         private static bool enemyHasRemovableSpellShield(this AIBaseClient target)
         {
