@@ -7,20 +7,15 @@
 - Collision Harass with E
 - Sion R Exploit | Follow Mouse / Target
 - Automatic Spellshield breaker with W in Ult against Sivir, Nocturne, Malzahar, Edge of Night...
-- Killsteal with Q, W, E (Q Charge DMG)
+- Killsteal with Q, W, E (Q Charge DMG) / Prowlers Claw and Collector support
 - Ult Blacklist
 - Release Q before enemy interrupts us (OnDoCast with us as target...) 
--
+- Jungle Killstealer with Q (Charge and non Charge)
 
 # TODO
 - Refractor Code
 - Improve Q Logic (Not perfect atm) --> Add Automatic Q Casting not only Release
 - Add Safe Checks for Q Casting
-- Implement Lane Clear
-- Add Collector 5% Treshhold to Killsteal ✔️
-- Add Prowlers Claw Usage to Killsteal ✔️
-- Added option to prevent debug messages in chat ✔️
-- Release Q before enemy interrupts us (OnDoCast with us as target...) ✔️
 
 
 # Credits
