@@ -4,6 +4,7 @@ using System.Linq;
 using EnsoulSharp;
 using EnsoulSharp.SDK;
 using EnsoulSharp.SDK.MenuUI;
+using EnsoulSharp.SDK.Utility;
 using SharpDX;
 using WafendAIO.Libraries;
 using Color = System.Drawing.Color;
@@ -28,7 +29,6 @@ namespace WafendAIO.Champions
         public static int Tick;
         public static Items.Item ProwlersClaw;
         public static Items.Item Collector;
-        public static AIBaseClientProcessSpellCastEventArgs qArgs;
         public static Vector3 posVec;
         
 
@@ -109,15 +109,14 @@ namespace WafendAIO.Champions
                 new MenuSlider("minionRadius", "Cursor Radius Minion", 500, 100, 1000)
             };
             Config.Add(menuDrawing);
-            
-            
-            
-            //new MenuBool("jungleSteal", "Jungle Steal", false),
+
+
             var menuMisc = new Menu("miscSettings", "Misc")
             {
                 new MenuBool("printDebug", "Print Debug in Chat", false),
-                new MenuBool("eGapCloser", "E on Gapcloser", false),
-                new MenuBool("qGapCloser", "Q on Gapcloser", false)
+                //new MenuBool("eGapCloser", "E on Gapcloser", false),
+                new MenuBool("jungleSteal", "Jungle Steal", false)
+                //new MenuBool("qGapCloser", "Q on Gapcloser", false)
             };
             Config.Add(menuMisc);
             
@@ -217,7 +216,7 @@ namespace WafendAIO.Champions
 
         private static void OnGameUpdate(EventArgs args)
         {
-            if (ObjectManager.Player.IsDead) return;
+            if (ObjectManager.Player.IsDead || ObjectManager.Player.IsRecalling() || MenuGUI.IsChatOpen || ObjectManager.Player.IsWindingUp) return;
             
             switch (Orbwalker.ActiveMode)
             {
@@ -228,12 +227,10 @@ namespace WafendAIO.Champions
             
             logicQ();
             killsteal();
-            //jungleSteal();
+            jungleSteal();
             R_Exploit();
-            if (HitByR)
-            {
-                ccChainAfterUlt();
-            }
+            ccChainAfterUlt();
+            
             
         }
 
@@ -299,7 +296,6 @@ namespace WafendAIO.Champions
                     QCastGameTime = Game.Time;
                     Rec = new Geometry.Rectangle(args.Start, args.Start.Extend(args.End, Q.Range), Q.Width);
                     MaxRec = new Geometry.Rectangle(args.Start, args.Start.Extend(args.End, Q.ChargedMaxRange), Q.Width);
-                    qArgs = args;
                     //Get enemy in our Q Rectangle with the Q being on full range
                     var possibleTarget = GameObjects.EnemyHeroes.Where(x => x.IsVisibleOnScreen && MaxRec.IsInside(x));
                     var aiHeroClients = possibleTarget as AIHeroClient[] ?? possibleTarget.ToArray();
@@ -343,12 +339,16 @@ namespace WafendAIO.Champions
         private static void OnBuffGain(AIBaseClient sender, AIBaseClientBuffAddEventArgs args)
         {
 
+            if (sender.IsMe && args.Buff.Name.Equals("SionQ"))
+            {
+                
+            }
+            
             if (!sender.IsValidTarget() || !sender.IsVisibleOnScreen)
             {
                 return;
             }
-
-
+            
             if (Config["exploitSettings"].GetValue<MenuBool>("autoQAfterUlt").Enabled)
             {
                 if (args.Buff.Name.Equals("sionrtarget") && !Q.IsCharging)
@@ -504,6 +504,7 @@ namespace WafendAIO.Champions
 
         private static void ccChainAfterUlt()
         {
+            if (!HitByR) return;
             var target = REnemy;
             if (target is null || !target.IsValidTarget() || !target.IsVisibleOnScreen || !target.IsEnemy ||
                 target.Type != GameObjectType.AIHeroClient)
@@ -516,7 +517,7 @@ namespace WafendAIO.Champions
 
         private static void releaseQAfterUltNoFlash(AIBaseClient target)
         {
-            if (target.HasBuff("sionrtarget"))
+            if (!Q.IsCharging)
             {
                 switch (Config["combatSettings"].GetValue<MenuList>("comboMode").Index)
                 {
@@ -572,21 +573,29 @@ namespace WafendAIO.Champions
                 }
                 
                 //Q
-                if (getQDamage(enemyHero) >= enemyHealth && Config["killstealSettings"].GetValue<MenuBool>("qKillsteal").Enabled )
+                if (getQDamage(enemyHero) >= enemyHealth && Config["killstealSettings"].GetValue<MenuBool>("qKillsteal").Enabled && Q.CanCast(enemyHero))
                 {
-                    var targetPos = enemyHero.Position;
-                    if (Q.IsCharging && Rec != null && Rec.IsInside(targetPos))
+                    if (Q.IsCharging && Rec != null && Rec.IsInside(enemyHero.Position))
                     {
-                        printDebugMessage("Killstealing with Q Charge");
-                        Q.ShootChargedSpell(targetPos);
+                        DelayAction.Add(100, () =>
+                        {
+                            if (!Q.ShootChargedSpell(enemyHero.Position)) return;
+                            
+                            printDebugMessage("Charge Q KS");
+                        });
+                        Rec = null;
                     }
                     else
                     {
-                        if (targetPos.DistanceToPlayer() <= 500 && Q.IsReady() && !ObjectManager.Player.HasBuff("SionQ"))
+                        if (enemyHero.Position.DistanceToPlayer() <= 500)
                         {
-                            printDebugMessage("No Charge Q Ks");
-                            Q.StartCharging(targetPos);
-                            Q.ShootChargedSpell(targetPos);
+                            
+                            DelayAction.Add(100, () =>
+                            {
+                                if (!Q.StartCharging(enemyHero.Position) || !Q.ShootChargedSpell(enemyHero.Position)) return;
+                                printDebugMessage("No Charge Q Ks");
+                            });
+                            
                         }
 
                     }
@@ -602,11 +611,17 @@ namespace WafendAIO.Champions
                         if (enemyHero.DistanceToPlayer() <= E.Range)
                         {
                             var pOutE = E.GetPrediction(enemyHero);
-                            if (E.CanCast(enemyHero) && pOutE.Hitchance >= HitChance.High)
+                            
+                            
+                            DelayAction.Add(100, () =>
                             {
+                                if (!E.CanCast(enemyHero) || pOutE.Hitchance < HitChance.High ||
+                                    !E.Cast(pOutE.CastPosition)) return;
+                                
                                 printDebugMessage("Direct Hit with E");
-                                E.Cast(pOutE.CastPosition);
-                            }
+                                
+                            });
+                           return;
                         }
                         else
                         {
@@ -775,11 +790,15 @@ namespace WafendAIO.Champions
                     if (target.DistanceToPlayer() <= E.Range)
                     {
                         PredictionOutput pOutE = E.GetPrediction(target);
-                        if (E.CanCast(target) && pOutE.Hitchance >= HitChance.High)
+                        DelayAction.Add(100, () =>
                         {
-                            printDebugMessage("Direct Harass Hit with E");
-                            E.Cast(pOutE.CastPosition);
-                        }
+                            if (E.CanCast(target) && pOutE.Hitchance >= HitChance.High)
+                            {
+                                E.Cast(target);
+                                printDebugMessage("Direct Harass Hit with E");
+                            }
+                        });
+                        
                     }
                     else
                     {
@@ -847,33 +866,43 @@ namespace WafendAIO.Champions
         }
 
 
-        /*public static void jungleSteal()
+        public static void jungleSteal()
         {
 
             if (Config["miscSettings"].GetValue<MenuBool>("jungleSteal").Enabled)
             {
                 var entities = getEntitiesInQ();
                 if (entities == null) return;
-                var jungleObj = entities.Where(x => x.IsJungle() && x.Health < getQDamage((AIBaseClient) x));
+                var jungleObj = entities.Where(x => x.IsJungle() && x.Health < getQDamage((AIBaseClient) x) && (((AIBaseClient) x).GetJungleType().HasFlag(JungleType.Large) || ((AIBaseClient) x).GetJungleType().HasFlag(JungleType.Legendary)));
 
                 if (jungleObj.Any())
                 {
                     var targ = jungleObj.FirstOrDefault();
-                    if (targ == null) return;
+                    if (targ == null || !Q.CanCast( (AIBaseClient) targ)) return;
+                    
                 
                     if (Q.IsCharging)
                     {
-                        Q.ShootChargedSpell(targ.Position);
-                    } else
+                        DelayAction.Add(200, () =>
+                        {
+                            if (!Q.ShootChargedSpell(targ.Position)) return;
+                            printDebugMessage("Jungle Charge KS");
+                        });
+
+                    } 
+                    else
                     {
-                        Q.StartCharging(targ.Position);
-                        Q.ShootChargedSpell(targ.Position);
+                        
+                        DelayAction.Add(200, () =>
+                        {
+                            if (!Q.StartCharging(targ.Position) || !Q.ShootChargedSpell(targ.Position)) return;
+                            printDebugMessage("Jungle Direct KS");
+                        });
                     }
-                    printDebugMessage("Jungle Steal");
                 }
             }
             
-        }*/
+        }
 
        
     }
