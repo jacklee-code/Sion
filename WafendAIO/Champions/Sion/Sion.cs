@@ -115,8 +115,9 @@ namespace WafendAIO.Champions
             {
                 new MenuBool("printDebug", "Print Debug in Chat", false),
                 //new MenuBool("eGapCloser", "E on Gapcloser", false),
-                new MenuBool("jungleSteal", "Jungle Steal", false)
+                new MenuBool("jungleSteal", "Jungle Steal", false),
                 //new MenuBool("qGapCloser", "Q on Gapcloser", false)
+                new MenuBool("lockCamera", "Disable Camera Lock in Ult", false)
             };
             Config.Add(menuMisc);
             
@@ -133,10 +134,17 @@ namespace WafendAIO.Champions
             IntterupterLib.Interrupter.OnInterrupterSpell += OnPossibleInterrupt;
             AIBaseClient.OnIssueOrder += OnIssueOrder;
             AIBaseClient.OnNewPath += OnNewPath;
+           //Game.OnProcessPacket += new GameProcessPacket(Game_OnGameProcessPacket);
             //AntiGapcloser.OnGapcloser += OnAntiGapcloser;
-            
+
 
         }
+
+        /*private static void Game_OnGameProcessPacket(GamePacketEventArgs args)
+        {
+            args.PacketData[0] == 
+        }*/
+
 
         private static void OnDoCast(AIBaseClient sender, AIBaseClientProcessSpellCastEventArgs args)
         {
@@ -583,7 +591,6 @@ namespace WafendAIO.Champions
                             
                             printDebugMessage("Charge Q KS");
                         });
-                        Rec = null;
                     }
                     else
                     {
@@ -703,6 +710,9 @@ namespace WafendAIO.Champions
         {
             if (GameObjects.Player.HasBuff("SionR"))
             {
+                if (Config["miscSettings"].GetValue<MenuBool>("lockCamera").Enabled) Hud.SetCameraLockState(false);
+                
+                
                 switch (Config["exploitSettings"].GetValue<MenuList>("ultMode").Index)
                 {
                     case 0:
