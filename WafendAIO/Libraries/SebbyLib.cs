@@ -47,7 +47,7 @@ namespace WafendAIO.Libraries
                         if (sender.IsVisibleOnScreen && KurisuLib.CCList.Any(x => x.HeroName == sender.CharacterName && x.Slot == args.Slot))
                         {
                             //Our player is the target and it is a CC Spell that can interrupt our Q
-                            Sion.handlePossibleInterrupt(sender, args);
+                            Helpers.handlePossibleInterrupt(sender, args);
                         }
                     }
                 }

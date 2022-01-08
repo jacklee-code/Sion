@@ -25,9 +25,6 @@ namespace WafendAIO
                 case "Sion":
                     Sion.initializeSion();
                     break;
-                case "Galio": 
-                    GalioTest.initializeGalio();
-                    break;
                 default:
                     Console.WriteLine($"[WafendAIO]: {GameObjects.Player.CharacterName} not supported!");
                     Game.Print("<font size='26'><font color='#9999CC'>WafendAIO</font></font> <font color='#FF5640'> Champion not supported</font>");

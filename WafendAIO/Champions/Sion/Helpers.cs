@@ -21,12 +21,12 @@ namespace WafendAIO.Champions
         private static readonly double[] MaxQdmg = {70, 135, 200, 265, 330};
         private static readonly double[] MaxQadPercentage = {135, 157.5, 180, 202.5, 225};
         
-        
-        public static bool isQKnockup()
-        {
-            return Q.IsCharging && Math.Abs(Game.Time - QCastGameTime) >= 0.925;
-            
-        }
+        //Deprecated, using particles now
+            /*public static bool isQKnockup()
+            {
+                return Q.IsCharging && Math.Abs(Game.Time - Q.ChargeRequestSentTime) >= 0.925;
+                
+            }*/
 
         public static bool hitByE(this AIBaseClient target)
         {
@@ -35,18 +35,15 @@ namespace WafendAIO.Champions
 
         public static void resetQ()
         {
-            Rec = null;
+            CurrentRec = null;
             QTarg = null;
             IntersectArr = null;
             HitByR = false;
             StunBuff = null;
+            IsKnockUp = false;
         }
         
-        public static bool lagFree(int offset)
-        {
-            return Tick == offset;
-        }
-
+   
         public static bool isW2Ready()
         {
             return W.IsReady() && ObjectManager.Player.HasBuff("sionwshieldstacks");
@@ -77,8 +74,17 @@ namespace WafendAIO.Champions
 
             var targ = target as AIHeroClient;
 
-            dmg = targ != null ?  dmg += OktwCommon.GetIncomingDamage((AIHeroClient) target) : dmg *= 1.5;
             
+            
+            if (Config["killstealSettings"].GetValue<MenuBool>("includeIncDmgKillsteal").Enabled)
+            {
+                dmg = targ != null ?  dmg += OktwCommon.GetIncomingDamage((AIHeroClient) target) : dmg *= 1.5;
+            }
+            else
+            {
+                dmg = targ != null ?  dmg : dmg *= 1.5;
+
+            }
             //TODO -10 is a random value --> need to find more accurate way on how to get exact charge time to calculate the damage properly
             return dmg - 10;
             
@@ -91,7 +97,7 @@ namespace WafendAIO.Champions
 
         public static IEnumerable<AttackableUnit> getEntitiesInQ()
         {
-            if (Rec == null || !Q.IsCharging) return null;
+            if (CurrentRec == null || !Q.IsCharging) return null;
 
             return GameObjects.AttackableUnits.Where(x => !x.IsDead && x.IsTargetable && x.Team != ObjectManager.Player.Team && MaxRec.IsInside(x.Position));
         }
@@ -105,6 +111,26 @@ namespace WafendAIO.Champions
             
         }
 
-       
+        public static IEnumerable<AttackableUnit> getAttackableUnitsInAaRange()
+        {
+            return GameObjects.AttackableUnits.Where(x => x.IsValid && x.IsVisibleOnScreen && x.InAutoAttackRange());
+        }
+        
+        public static void handlePossibleInterrupt(AIBaseClient sender, AIBaseClientProcessSpellCastEventArgs args)
+        {
+            if (Config["combatSettings"].GetValue<MenuBool>("qBeforeInterrupt").Enabled && Q.IsCharging)
+            {
+                var entities = getEntitiesInQ().Any(x => x.Type == GameObjectType.AIHeroClient);
+                //Check if we are charging our Q and if there is an AiHeroClient Entitiy in our Q
+                if (entities)
+                {
+                    printDebugMessage("Detected possible Spell that can interrupt us");
+                    Q.ShootChargedSpell(ObjectManager.Player.Position);
+                }
+            }
+
+        }
+
+
     }
 }
